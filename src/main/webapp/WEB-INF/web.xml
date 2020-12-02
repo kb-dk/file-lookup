@@ -1,0 +1,39 @@
+<web-app version="2.5" xmlns="http://java.sun.com/xml/ns/javaee" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd">
+    <display-name>${project.name}</display-name>
+
+    <servlet>
+        <servlet-name>Servlet</servlet-name>
+        <servlet-class>org.apache.cxf.jaxrs.servlet.CXFNonSpringJaxrsServlet</servlet-class>
+        <init-param>
+            <param-name>javax.ws.rs.Application</param-name>
+            <param-value>dk.kb.lookup.webservice.LookupApplication</param-value>
+        </init-param>
+        <init-param>
+            <!--This enables the endpoint /file-lookup/openapi.json-->
+            <!--This enables the (Swagger UI) endpoint /file-lookup/api-docs -->
+            <param-name>jaxrs.features</param-name>
+            <param-value>org.apache.cxf.jaxrs.openapi.OpenApiFeature</param-value>
+        </init-param>
+
+        <init-param>
+            <!--Here we override openapi.json and openapi.yaml from the above feature, to serve the static files-->
+            <!--THIS IS A HACK. But it seems like the simplest way to recover the original specs-->
+            <param-name>static-resources-list</param-name>
+            <param-value>
+                /openapi\..+
+            </param-value>
+        </init-param>
+        <load-on-startup>1</load-on-startup>
+    </servlet>
+
+
+    <servlet-mapping>
+        <servlet-name>Servlet</servlet-name>
+        <url-pattern>/*</url-pattern>
+    </servlet-mapping>
+
+    <listener>
+        <listener-class>dk.kb.lookup.webservice.LookupContextListener</listener-class>
+    </listener>
+</web-app>

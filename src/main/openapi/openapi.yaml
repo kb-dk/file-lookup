@@ -1,0 +1,75 @@
+openapi: 3.0.2
+info:
+  version: "${project.version}"
+  title: "${project.name}"
+  description: |
+    ${project.description}
+  contact:
+    email: "${user.name}@kb.dk"
+  license:
+    name: "${license.name}"
+    url: "${license.url}"
+servers:
+  - url: "/${project.artifactId}/"
+    description: "Current server"
+#tags:
+#  - name: test
+#    description: "Samples for template"
+paths:
+  /ping:
+    get:
+      summary: 'Ping the server to check if the server is reachable'
+      operationId: ping
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                type: string
+        '406':
+          description: Not Acceptable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /status:
+    get:
+#      tags:
+#        - "test"
+      summary: 'Get the status for the service'
+      operationId: getstatus
+      responses:
+        '200':
+          description: A JSON structure containing the status of the service (number of files etc.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusReply'
+components:
+  schemas:
+    StatusReply:
+      type: object
+      required:
+        - general
+      properties:
+        general:
+          type: string
+          description: Human readable status
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+        message:
+          type: string
