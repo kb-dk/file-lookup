@@ -22,7 +22,7 @@ mvn jetty:run
 ```
 
 The default port is 8080 and ping can be accessed at
-[http://localhost:8080/file-lookup/ping](http://localhost:8080/file-lookuo/ping)
+[http://localhost:8080/file-lookup/ping](http://localhost:8080/file-lookup/ping)
 
 The Swagger-UI is available at http://localhost:8080/file-lookup/api-docs?url=openapi.json
 
