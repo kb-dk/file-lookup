@@ -39,12 +39,59 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+
+  /getEntryFromFilename:
+    get:
+      summary: 'Get the entry (path, filename and lastSeen) for a given filename'
+      operationId: getEntryFromFilename
+      parameters:
+        - name: filename
+          in: query
+          description: The filename to locate
+          required: true
+          schema:
+            type: string
+            example: 'broad_harvest_2020-12-02T16:00:00Z.warc.gz'
+      responses:
+        '200':
+          description: A JSON structure containing the path, filename and lastSeen timestamp for the given filename
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntryReply'
+        '204':
+          description: If an entry for the given filename could not be located
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /getEntriesFromRegexp:
+    get:
+      summary: 'Get the entries (path, filename and lastSeen) for a given regexp'
+      operationId: getEntriesFromRegexp
+      parameters:
+        - name: regexp
+          in: query
+          description: The regexp which will be matched against the full path + filename
+          required: true
+          schema:
+            type: string
+            example: '.*/harvest_246/.*2020-12-02.*\\.warc.*'
+      responses:
+        '200':
+          description: A list with the path, filename and lastSeen timestamps for the matches. The list can be empty
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntriesReply'
+
   /status:
     get:
 #      tags:
 #        - "test"
       summary: 'Get the status for the service'
-      operationId: getstatus
+      operationId: getStatus
       responses:
         '200':
           description: A JSON structure containing the status of the service (number of files etc.)
@@ -52,8 +99,55 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/StatusReply'
+
+  /status/getRoots:
+    get:
+      summary: 'Get the file paths that are tracked'
+      operationId: getRoots
+      responses:
+        '200':
+          description: A JSON structure containing the roots (file paths) that are tracked by the service
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RootsReply'
+
+  /status/fileCount:
+    get:
+      summary: 'Get the number of files registered'
+      operationId: getFilecount
+      responses:
+        '200':
+          description: An integer stating the number of registered files
+          content:
+            text/plain:
+              schema:
+                type: integer
+
+  /control/startScan:
+    get:
+      summary: 'Start a scan of all or some of the roots. If a scan is already running a new one will not be started'
+      operationId: startScan
+      parameters:
+        - name: rootPattern
+          in: query
+          description: A pattern for the roots to scan
+          required: false
+          schema:
+            type: string
+            default: '.*'
+            example: '.*/archive_202[0-9]/.*'
+      responses:
+        '200':
+          description: 'A list of the roots for the started scan or the empty list if the pattern did not match any roots or a scan was already running'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RootsReply'
+
 components:
   schemas:
+
     StatusReply:
       type: object
       required:
@@ -62,6 +156,40 @@ components:
         general:
           type: string
           description: Human readable status
+
+    RootsReply:
+      type: object
+      required:
+        - roots
+      properties:
+        roots:
+          type: array
+          items:
+            type: string
+          description: List of roots (file paths)
+
+    EntryReply:
+      type: object
+      required:
+        - path
+        - lastSeen
+      properties:
+        path:
+          type: string
+          description: The path for the file
+        filename:
+          type: string
+          description: The filename for the file. This will not be present if there is only a path
+        lastSeen:
+          type: string
+          description: When the entry was last seen, in the subset YYYY-MM-DDThh:mm:ssZ of ISO-8601
+          example: 2020-12-02T16:04:00Z
+
+    EntriesReply:
+      type: array
+      items:
+        $ref: '#/components/schemas/EntryReply'
+
     Error:
       type: object
       required:

@@ -1,7 +1,6 @@
 package dk.kb.lookup.config;
 
 import java.io.IOException;
-import java.util.List;
 
 import dk.kb.lookup.webservice.LookupContextListener;
 import dk.kb.util.yaml.YAML;
@@ -30,19 +29,8 @@ public class LookupServiceConfig {
     }
 
     /**
-     * Demonstration of a first-class property, meaning that an explicit method has been provided.
-     * @see #getConfig() for alternative.
-     * @return the "Hello World" lines defined in the config file.
-     */
-    public static List<String> getHelloLines() {
-        List<String> lines = serviceConfig.getList("config.helloLines");
-        return lines;
-    }
-
-    /**
      * Direct access to the backing YAML-class is used for configurations with more flexible content
      * and/or if the service developer prefers key-based property access.
-     * @see #getHelloLines() for alternative.
      * @return the backing YAML-handler for the configuration.
      */
     public static YAML getConfig() {

@@ -1,29 +1,13 @@
 package dk.kb.lookup.api.impl;
 
-import dk.kb.lookup.api.*;
-import java.util.ArrayList;
+import dk.kb.lookup.api.DefaultApi;
+import dk.kb.lookup.config.LookupServiceConfig;
 import dk.kb.lookup.model.EntryReplyDto;
-import dk.kb.lookup.model.ErrorDto;
-import java.util.List;
-import java.util.Map;
 import dk.kb.lookup.model.RootsReplyDto;
 import dk.kb.lookup.model.StatusReplyDto;
 
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.io.File;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import javax.ws.rs.*;
-import javax.ws.rs.core.Response;
-import org.apache.cxf.jaxrs.model.wadl.Description;
-import org.apache.cxf.jaxrs.model.wadl.DocTarget;
-
-import org.apache.cxf.jaxrs.ext.multipart.*;
-
-import io.swagger.annotations.Api;
 
 /**
  * file-lookup
@@ -31,7 +15,10 @@ import io.swagger.annotations.Api;
  * <p>This pom can be inherited by projects wishing to integrate to the SBForge development platform. 
  *
  */
-public class DefaultApiServiceImpl implements DefaultApi {
+public class MemoryImpl implements DefaultApi {
+
+    private List<String> roots = LookupServiceConfig.getConfig().getList(".config.roots");
+
     /**
      * Get the entries (path, filename and lastSeen) for a given regexp
      *
@@ -79,10 +66,7 @@ public class DefaultApiServiceImpl implements DefaultApi {
      */
     @Override
     public RootsReplyDto getRoots() {
-        // TODO: Implement...
         RootsReplyDto response = new RootsReplyDto();
-        List<String> roots = new ArrayList<>();
-        roots.add("xf303");
         response.setRoots(roots);
         return response;
     }
