@@ -25,6 +25,28 @@ public class FileEntry {
     final static SimpleDateFormat iso8601 = new SimpleDateFormat("YYYY-MM-DD'T'HH:mm:ss'Z'", Locale.ENGLISH);
 
     /**
+     * @param path path to a file, without the filename part. Must not be null.
+     * @param filename filename, without the path. Can be null.
+     */
+    public FileEntry(String path, String filename) {
+        this (path, filename, System.currentTimeMillis());
+    }
+
+    /**
+     * @param path path to a file, without the filename part. Must not be null.
+     * @param filename filename, without the path. Can be null.
+     * @param lastSeen when the entry was seen in milliseconds since Epoch {@code System.currentTimeMillis()}.
+     */
+    public FileEntry(String path, String filename, long lastSeen) {
+        this.path = path;
+        this.filename = filename;
+        this.lastSeen = lastSeen;
+        if (path == null) {
+            throw new NullPointerException("Path was null");
+        }
+    }
+
+    /**
      * The path for the file. Never null.
      */
     public String path;
