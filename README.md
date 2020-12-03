@@ -7,6 +7,8 @@ Simple webservice for locating files.
 Scans a given number of file paths recursively at regular intervals and provides fast
 lookup of file paths from file names.
 
+Currently the implementation is limited to 2*10^9 (2 billion) files. 
+
 ## Requirements
 
  * Java 11, Maven 3
