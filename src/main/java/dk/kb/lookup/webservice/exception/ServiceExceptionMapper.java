@@ -15,7 +15,7 @@ public class ServiceExceptionMapper implements ExceptionMapper<ServiceException>
     
         Response.Status responseStatus = exception.getResponseStatus();
         Object entity = exception.getEntity();
-        
+
         return entity != null ?
                 Response.status(responseStatus)
                         .entity(entity)
