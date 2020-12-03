@@ -1,16 +1,17 @@
 package dk.kb.lookup.api.impl;
 
 import dk.kb.lookup.FileEntry;
+import dk.kb.lookup.ScanBot;
 import dk.kb.lookup.api.DefaultApi;
 import dk.kb.lookup.config.LookupServiceConfig;
 import dk.kb.lookup.model.EntryReplyDto;
 import dk.kb.lookup.model.RootsReplyDto;
 import dk.kb.lookup.model.StatusReplyDto;
 import dk.kb.lookup.webservice.exception.NoContentServiceException;
-import io.swagger.models.auth.In;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -21,11 +22,10 @@ import java.util.stream.Collectors;
  *
  */
 public class MemoryImpl implements DefaultApi {
+    private static final Logger log = LoggerFactory.getLogger(MemoryImpl.class);
 
-    private List<String> roots = LookupServiceConfig.getConfig().getList(".config.roots");
-
-    final Map<String, FileEntry> filenameMap = new HashMap<>();
-
+    private static List<String> roots = LookupServiceConfig.getConfig().getList(".config.roots");
+    private final static Map<String, FileEntry> filenameMap = new HashMap<>();
 
     /**
      * Get the entries (path, filename and lastSeen) for a given regexp
@@ -62,6 +62,7 @@ public class MemoryImpl implements DefaultApi {
      */
     @Override
     public Integer getFilecount() {
+        log.debug("Returning filecount " + filenameMap.size()); // TODO: Delete
         return filenameMap.size();
     }
 
@@ -102,14 +103,32 @@ public class MemoryImpl implements DefaultApi {
      */
     @Override
     public RootsReplyDto startScan(String rootPattern) {
-        // TODO: Implement...
+        Pattern pattern = Pattern.compile(rootPattern);
+        List<String> scanRoots = roots.stream().
+                filter(root -> pattern.matcher(root).matches()).
+                collect(Collectors.toList());
+
+        // TODO: Better return message
+        if (scanRoots.isEmpty() ||
+            !ScanBot.instance().isReady() ||
+            !ScanBot.instance().startScan(scanRoots, this::acceptFolder)) {
+            RootsReplyDto response = new RootsReplyDto();
+            response.setRoots(Collections.emptyList());
+            return response;
+        }
+
         RootsReplyDto response = new RootsReplyDto();
-        List<String> roots = new ArrayList<>();
-        roots.add("L8U47na");
-        response.setRoots(roots);
+        response.setRoots(scanRoots);
         return response;
     }
 
+    private void acceptFolder(ScanBot.Folder folder) {
+
+        log.debug("acceptFolder(" + folder + ") called");
+        // TODO: Delete all folder content from MemoryImpl before adding new
+        folder.forEach(entry -> filenameMap.put(entry.filename, entry));
+        log.debug("Filecount after accept=" + filenameMap.size());
+    }
 
     /* ----------------------------------------------------------------------------------- */
 
@@ -120,5 +139,4 @@ public class MemoryImpl implements DefaultApi {
         item.setLastSeen(fileEntry.getLastSeenAsISO8601());
         return item;
     }
-
 }
