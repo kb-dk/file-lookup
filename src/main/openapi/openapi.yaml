@@ -65,6 +65,12 @@ paths:
             text/plain:
               schema:
                 type: string
+        '500':
+          description: Internal Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /getEntriesFromRegexp:
     get:
@@ -93,6 +99,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/EntriesReply'
+        '500':
+          description: Internal Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /status:
     get:
@@ -146,12 +158,19 @@ paths:
             default: '.*'
             example: '.*/archive_202[0-9]/.*'
       responses:
+        # TODO: Explicitly state if a non-starter was due to a scan already running or if no roots matched.
         '200':
           description: 'A list of the roots for the started scan or the empty list if the pattern did not match any roots or a scan was already running'
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/RootsReply'
+        '500':
+          description: Internal Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
 components:
   schemas:
