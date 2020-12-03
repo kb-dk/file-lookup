@@ -14,12 +14,16 @@
  */
 package dk.kb.lookup;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Locale;
 
 /**
  * Representation of an entry in {@link Storage}.
  */
 public class FileEntry {
+    final static SimpleDateFormat iso8601 = new SimpleDateFormat("YYYY-MM-DD'T'HH:mm:ss'Z'", Locale.ENGLISH);
+
     /**
      * The path for the file. Never null.
      */
@@ -34,11 +38,28 @@ public class FileEntry {
     public long lastSeen;
 
     /**
+     * @return lastSeen as the subset {@code YYYY-MM-DDThh:mm:ssZ} of iso-8601.
+     */
+    public String getLastSeenAsISO8601() {
+        synchronized (iso8601) { // SimpleDateFormat is not thread safe
+            return iso8601.format(new Date(lastSeen));
+        }
+    }
+
+    /**
+     * @return the concatenated path and the filename. If the filename is null, only the path is returned.
+     */
+    public String getFullpath() {
+        return path + (filename == null ? "" : filename);
+    }
+
+    /**
      * @return a JSON representation of the entry, intended for external delivery.
      */
     public String toJSON() {
-        return String.format(Locale.ENGLISH, "{\"path\": \"%s\", \"filename\": %s, \"lastSeen\": %d}",
-                             path, filename == null ? "null" : ("\"" + filename + "\""), lastSeen);
+        return String.format(Locale.ENGLISH, "{\"path\": \"%s\", \"filename\": %s, \"lastSeen\": \"%s\"}",
+                             escapeJSON(path), filename == null ? "null" : ("\"" + escapeJSON(filename) + "\""),
+                             getLastSeenAsISO8601());
     }
 
     String escapeJSON(String value) {
