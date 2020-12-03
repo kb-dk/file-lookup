@@ -4,3 +4,6 @@ config:
     - '/tmp'
   # A scanInterval of -1 disables automatic scanning
   scanIntervalSeconds: -1
+  # TODO: Implement these
+  scanOnStartup: true
+  filePattern: '.*'
