@@ -37,13 +37,13 @@ public class DefaultApiServiceImpl implements DefaultApi {
      *
      */
     @Override
-    public List<EntryReplyDto> getEntriesFromRegexp(String regexp) {
+    public List<EntryReplyDto> getEntriesFromRegexp(String regexp, Integer max) {
         // TODO: Implement...
         List<EntryReplyDto> response = new ArrayList<>();
         EntryReplyDto item = new EntryReplyDto();
-        item.setPath("yn430g");
-        item.setFilename("smHFEK");
-        item.setLastSeen("W8UKj5");
+        item.setPath("c2xBkh4VH4");
+        item.setFilename("uenYF6oF7");
+        item.setLastSeen("BQD3i");
         response.add(item);
         return response;
     }
@@ -56,9 +56,9 @@ public class DefaultApiServiceImpl implements DefaultApi {
     public EntryReplyDto getEntryFromFilename(String filename) {
         // TODO: Implement...
         EntryReplyDto response = new EntryReplyDto();
-        response.setPath("oJKLY");
-        response.setFilename("H2zGL");
-        response.setLastSeen("B3hjM");
+        response.setPath("rRm3VF");
+        response.setFilename("oRe0N7");
+        response.setLastSeen("djKR91S9Q2J");
         return response;
     }
 
@@ -69,7 +69,7 @@ public class DefaultApiServiceImpl implements DefaultApi {
     @Override
     public Integer getFilecount() {
         // TODO: Implement...
-        Integer response = -917886229;
+        Integer response = -732168935;
         return response;
     }
 
@@ -82,7 +82,7 @@ public class DefaultApiServiceImpl implements DefaultApi {
         // TODO: Implement...
         RootsReplyDto response = new RootsReplyDto();
         List<String> roots = new ArrayList<>();
-        roots.add("xf303");
+        roots.add("blTpU");
         response.setRoots(roots);
         return response;
     }
@@ -95,7 +95,7 @@ public class DefaultApiServiceImpl implements DefaultApi {
     public StatusReplyDto getStatus() {
         // TODO: Implement...
         StatusReplyDto response = new StatusReplyDto();
-        response.setGeneral("MQ3h45z1gBlJC");
+        response.setGeneral("L5Znf");
         return response;
     }
 
@@ -106,7 +106,7 @@ public class DefaultApiServiceImpl implements DefaultApi {
     @Override
     public String ping() {
         // TODO: Implement...
-        String response = "W49VwBr";
+        String response = "VNj1Tt0N5nL6z";
         return response;
     }
 
@@ -119,7 +119,7 @@ public class DefaultApiServiceImpl implements DefaultApi {
         // TODO: Implement...
         RootsReplyDto response = new RootsReplyDto();
         List<String> roots = new ArrayList<>();
-        roots.add("L8U47na");
+        roots.add("dCh4ij9K");
         response.setRoots(roots);
         return response;
     }

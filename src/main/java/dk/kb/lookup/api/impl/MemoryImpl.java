@@ -1,13 +1,18 @@
 package dk.kb.lookup.api.impl;
 
+import dk.kb.lookup.FileEntry;
 import dk.kb.lookup.api.DefaultApi;
 import dk.kb.lookup.config.LookupServiceConfig;
 import dk.kb.lookup.model.EntryReplyDto;
 import dk.kb.lookup.model.RootsReplyDto;
 import dk.kb.lookup.model.StatusReplyDto;
+import dk.kb.lookup.webservice.exception.NoContentServiceException;
+import io.swagger.models.auth.In;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * file-lookup
@@ -19,20 +24,23 @@ public class MemoryImpl implements DefaultApi {
 
     private List<String> roots = LookupServiceConfig.getConfig().getList(".config.roots");
 
+    final Map<String, FileEntry> filenameMap = new HashMap<>();
+
+
     /**
      * Get the entries (path, filename and lastSeen) for a given regexp
      *
      */
     @Override
-    public List<EntryReplyDto> getEntriesFromRegexp(String regexp) {
-        // TODO: Implement...
-        List<EntryReplyDto> response = new ArrayList<>();
-        EntryReplyDto item = new EntryReplyDto();
-        item.setPath("yn430g");
-        item.setFilename("smHFEK");
-        item.setLastSeen("W8UKj5");
-        response.add(item);
-        return response;
+    public List<EntryReplyDto> getEntriesFromRegexp(String regexp, Integer max) {
+        Pattern pattern = Pattern.compile(regexp);
+        final int limit = max == -1 ? Integer.MAX_VALUE : max;
+
+        return filenameMap.values().stream().
+                filter(entry -> pattern.matcher(entry.getFullpath()).matches()).
+                limit(limit).
+                map(this::toReplyEntry).
+                collect(Collectors.toList());
     }
 
     /**
@@ -41,12 +49,11 @@ public class MemoryImpl implements DefaultApi {
      */
     @Override
     public EntryReplyDto getEntryFromFilename(String filename) {
-        // TODO: Implement...
-        EntryReplyDto response = new EntryReplyDto();
-        response.setPath("oJKLY");
-        response.setFilename("H2zGL");
-        response.setLastSeen("B3hjM");
-        return response;
+        FileEntry entry = filenameMap.get(filename);
+        if (entry != null) {
+            return toReplyEntry(entry);
+        }
+        throw new NoContentServiceException("Unable to locate an entry for '" + filename + "'");
     }
 
     /**
@@ -55,9 +62,7 @@ public class MemoryImpl implements DefaultApi {
      */
     @Override
     public Integer getFilecount() {
-        // TODO: Implement...
-        Integer response = -917886229;
-        return response;
+        return filenameMap.size();
     }
 
     /**
@@ -77,9 +82,8 @@ public class MemoryImpl implements DefaultApi {
      */
     @Override
     public StatusReplyDto getStatus() {
-        // TODO: Implement...
         StatusReplyDto response = new StatusReplyDto();
-        response.setGeneral("MQ3h45z1gBlJC");
+        response.setGeneral(String.format(Locale.ENGLISH, "%d roots, %d files", roots.size(), filenameMap.size()));
         return response;
     }
 
@@ -89,9 +93,7 @@ public class MemoryImpl implements DefaultApi {
      */
     @Override
     public String ping() {
-        // TODO: Implement...
-        String response = "W49VwBr";
-        return response;
+        return "file-lookup is alive";
     }
 
     /**
@@ -106,6 +108,17 @@ public class MemoryImpl implements DefaultApi {
         roots.add("L8U47na");
         response.setRoots(roots);
         return response;
+    }
+
+
+    /* ----------------------------------------------------------------------------------- */
+
+    private EntryReplyDto toReplyEntry(FileEntry fileEntry) {
+        EntryReplyDto item = new EntryReplyDto();
+        item.setPath(fileEntry.path);
+        item.setFilename(fileEntry.filename);
+        item.setLastSeen(fileEntry.getLastSeenAsISO8601());
+        return item;
     }
 
 }
