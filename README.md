@@ -7,7 +7,9 @@ Simple webservice for locating files.
 Scans a given number of file paths recursively at regular intervals and provides fast
 lookup of file paths from file names.
 
-Currently the implementation is limited to 2*10^9 (2 billion) files. 
+Currently the implementation is limited to 2*10^9 (2 billion) files.
+
+***Note:*** The service operates under the requirement that all tracked filenames are unique. 
 
 ## Requirements
 
