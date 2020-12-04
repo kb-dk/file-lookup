@@ -2,10 +2,13 @@ package dk.kb.lookup.api.impl;
 
 import dk.kb.lookup.api.*;
 import java.util.ArrayList;
+
+import dk.kb.lookup.model.EntriesRequestDto;
 import dk.kb.lookup.model.EntryReplyDto;
 import dk.kb.lookup.model.ErrorDto;
 import java.util.List;
 import java.util.Map;
+import dk.kb.lookup.model.ParamDto;
 import dk.kb.lookup.model.RootsReplyDto;
 import dk.kb.lookup.model.StatusReplyDto;
 
@@ -33,33 +36,35 @@ import io.swagger.annotations.Api;
  */
 public class DefaultApiServiceImpl implements DefaultApi {
     /**
-     * Get the entries (path, filename and lastSeen) for multiple filenames filenames
+     * Get the entries (path, filename and lastSeen) based on a given regexp or start time. Note that this is potentially a heavy request
      *
      */
     @Override
-    public List<EntryReplyDto> getEntriesFromFilename(List<String> filename) {
+    public List<EntryReplyDto> getEntries(EntriesRequestDto param, Integer max) {
         // TODO: Implement...
         List<EntryReplyDto> response = new ArrayList<>();
         EntryReplyDto item = new EntryReplyDto();
-        item.setPath("KC5lU");
-        item.setFilename("rE1RW");
-        item.setLastSeen("b5PaH4");
+        item.setPath("oOPCdo0J");
+        item.setFilename("T5T7v");
+        item.setLastSeen("DWC22");
+        item.setLastSeenEpochMS(2267730128045207552L);
         response.add(item);
         return response;
     }
 
     /**
-     * Get the entries (path, filename and lastSeen) for a given regexp. Note that this is a heavy request
+     * Get the entries (path, filename and lastSeen) for multiple filenames
      *
      */
     @Override
-    public List<EntryReplyDto> getEntriesFromRegexp(String regexp, Integer max) {
+    public List<EntryReplyDto> getEntriesFromFilenames(List<String> filename) {
         // TODO: Implement...
         List<EntryReplyDto> response = new ArrayList<>();
         EntryReplyDto item = new EntryReplyDto();
-        item.setPath("X9E5j");
-        item.setFilename("rvfkpMz");
-        item.setLastSeen("Psr2U");
+        item.setPath("Ejcyezm0BvZ3M5");
+        item.setFilename("V1NXTQ1M");
+        item.setLastSeen("I9evB8");
+        item.setLastSeenEpochMS(1963752492612741120L);
         response.add(item);
         return response;
     }
@@ -72,9 +77,10 @@ public class DefaultApiServiceImpl implements DefaultApi {
     public EntryReplyDto getEntryFromFilename(String filename) {
         // TODO: Implement...
         EntryReplyDto response = new EntryReplyDto();
-        response.setPath("UTF2s");
-        response.setFilename("SiG2Hg1WQ");
-        response.setLastSeen("wMaNJCZ8k");
+        response.setPath("y3JDM");
+        response.setFilename("Se05y");
+        response.setLastSeen("tL7sS4");
+        response.setLastSeenEpochMS(1217444224118642688L);
         return response;
     }
 
@@ -85,7 +91,7 @@ public class DefaultApiServiceImpl implements DefaultApi {
     @Override
     public Integer getFilecount() {
         // TODO: Implement...
-        Integer response = -758350544;
+        Integer response = -1984007099;
         return response;
     }
 
@@ -98,7 +104,7 @@ public class DefaultApiServiceImpl implements DefaultApi {
         // TODO: Implement...
         RootsReplyDto response = new RootsReplyDto();
         List<String> roots = new ArrayList<>();
-        roots.add("Ppffh5AnmGQ");
+        roots.add("wfdl73");
         response.setRoots(roots);
         return response;
     }
@@ -111,7 +117,7 @@ public class DefaultApiServiceImpl implements DefaultApi {
     public StatusReplyDto getStatus() {
         // TODO: Implement...
         StatusReplyDto response = new StatusReplyDto();
-        response.setGeneral("JpUjSU");
+        response.setGeneral("IT6E2");
         return response;
     }
 
@@ -122,7 +128,7 @@ public class DefaultApiServiceImpl implements DefaultApi {
     @Override
     public String ping() {
         // TODO: Implement...
-        String response = "jEsjV";
+        String response = "urTOJ";
         return response;
     }
 
@@ -135,7 +141,7 @@ public class DefaultApiServiceImpl implements DefaultApi {
         // TODO: Implement...
         RootsReplyDto response = new RootsReplyDto();
         List<String> roots = new ArrayList<>();
-        roots.add("gWOYLye");
+        roots.add("vOzC71");
         response.setRoots(roots);
         return response;
     }

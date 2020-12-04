@@ -4,14 +4,17 @@ import dk.kb.lookup.FileEntry;
 import dk.kb.lookup.ScanBot;
 import dk.kb.lookup.api.DefaultApi;
 import dk.kb.lookup.config.LookupServiceConfig;
+import dk.kb.lookup.model.EntriesRequestDto;
 import dk.kb.lookup.model.EntryReplyDto;
 import dk.kb.lookup.model.RootsReplyDto;
 import dk.kb.lookup.model.StatusReplyDto;
+import dk.kb.lookup.webservice.exception.InvalidArgumentServiceException;
 import dk.kb.lookup.webservice.exception.NoContentServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.validation.constraints.NotNull;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -27,15 +30,58 @@ import java.util.stream.Collectors;
 public class MemoryImpl implements DefaultApi {
     private static final Logger log = LoggerFactory.getLogger(MemoryImpl.class);
 
-    private static List<String> roots = LookupServiceConfig.getConfig().getList(".config.roots");
+    // Must be final as MemoryImpl are instantiated anew for each call
+    private final static List<String> roots = LookupServiceConfig.getConfig().getList(".config.roots");
     private final static Map<String, FileEntry> filenameMap = new HashMap<>();
     private final static ReadWriteLock locks = new ReentrantReadWriteLock();
+
+    /**
+     * Get the entries (path, filename and lastSeen) based on a given regexp or start time. Note that this is potentially a heavy request
+     *
+     */
+    @Override
+    public List<EntryReplyDto> getEntries(EntriesRequestDto param, Integer max) {
+        long since = 0;
+        if (param.getSinceEpochMS() != null) {
+            since = Math.max(since, param.getSinceEpochMS());
+        }
+        if (param.getSince() != null) {
+            since = Math.max(since,  toEpoch(param.getSince()));
+        }
+        final long finalSince = since;
+
+        final int limit = max == -1 ? Integer.MAX_VALUE : max;
+        Pattern pattern = param.getRegexp() == null ? null : Pattern.compile(param.getRegexp());
+
+        try {
+            locks.readLock().lock();
+            return filenameMap.values().stream().
+                    filter(entry -> entry.lastSeen >= finalSince).
+                    filter(entry -> pattern == null || pattern.matcher(entry.getFullpath()).matches()).
+                    limit(limit).
+                    sorted(Comparator.comparingLong(e -> e.lastSeen)).
+                    map(this::toReplyEntry).
+                    collect(Collectors.toList());
+        } finally {
+            locks.readLock().unlock();
+        }
+    }
+    public synchronized long toEpoch(String iso) {
+        try {
+            return iso8601.parse(iso).getTime();
+        } catch (ParseException e) {
+            throw new InvalidArgumentServiceException(
+                    "The timestamp '" + iso + "' could not be parsed using pattern '" + iso8601.toPattern() + "'", e);
+        }
+    }
+    final static SimpleDateFormat iso8601 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.ENGLISH);
+
+
 
     /**
      * Get the entries (path, filename and lastSeen) for a given regexp
      *
      */
-    @Override
     public List<EntryReplyDto> getEntriesFromRegexp(String regexp, Integer max) {
         Pattern pattern = Pattern.compile(regexp);
         final int limit = max == -1 ? Integer.MAX_VALUE : max;
@@ -51,6 +97,8 @@ public class MemoryImpl implements DefaultApi {
             locks.readLock().unlock();
         }
     }
+
+
 
     /**
      * Get the entry (path, filename and lastSeen) for a given filename
@@ -72,11 +120,11 @@ public class MemoryImpl implements DefaultApi {
     }
 
     /**
-     * Get the entries (path, filename and lastSeen) for multiple filenames filenames
+     * Get the entries (path, filename and lastSeen) for multiple filenames
      *
      */
     @Override
-    public List<EntryReplyDto> getEntriesFromFilename(List<String> filenames) {
+    public List<EntryReplyDto> getEntriesFromFilenames(List<String> filenames) {
         try {
             locks.readLock().lock();
             return filenames.stream().
@@ -215,7 +263,9 @@ public class MemoryImpl implements DefaultApi {
         EntryReplyDto item = new EntryReplyDto();
         item.setPath(fileEntry.path);
         item.setFilename(fileEntry.filename);
+        item.setLastSeenEpochMS(fileEntry.lastSeen);
         item.setLastSeen(fileEntry.getLastSeenAsISO8601());
         return item;
     }
+
 }
