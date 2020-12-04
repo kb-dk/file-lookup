@@ -60,9 +60,10 @@ public class ScanBot {
      * This call will return immediately.
      * @param roots where to scan from.
      * @param consumer handles callbacks.
+     * @param finalizer called if the scan completes successfully.
      * @return true if the scan was started.
      */
-    public synchronized boolean startScan(List<String> roots, Consumer<Folder> consumer) {
+    public synchronized boolean startScan(List<String> roots, Consumer<Folder> consumer, Runnable finalizer) {
         if (state == STATE.scanning) {
             log.info("Attempted to start job with roots " + roots + " but a scan was already running");
             return false;
@@ -79,6 +80,13 @@ public class ScanBot {
                 state = STATE.ready;
                 activeRoots = null;
                 activePath = null;
+            }
+            try {
+                if (finalizer != null) {
+                    finalizer.run();
+                }
+            } catch (Exception e) {
+                log.error("Exception calling finalizer after scan of " + roots, e);
             }
         });
         return true;

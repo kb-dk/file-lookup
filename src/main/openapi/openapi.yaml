@@ -72,21 +72,49 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /getEntriesFromFilename:
+    get:
+      summary: 'Get the entries (path, filename and lastSeen) for multiple filenames'
+      operationId: getEntriesFromFilename
+      parameters:
+        - name: filename
+          in: query
+          description: 'The filenames to locate'
+          required: true
+          schema:
+            type: array
+            items:
+              type: string
+            example: 'broad_harvest_2020-12-02T16:00:00Z.warc.gz'
+      responses:
+        '200':
+          description: A list with the path, filename and lastSeen timestamps for the filenames. The list can be empty
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntriesReply'
+        '500':
+          description: Internal Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /getEntriesFromRegexp:
     get:
-      summary: 'Get the entries (path, filename and lastSeen) for a given regexp'
+      summary: 'Get the entries (path, filename and lastSeen) for a given regexp. Note that this is a heavy request'
       operationId: getEntriesFromRegexp
       parameters:
         - name: regexp
           in: query
-          description: The regexp which will be matched against the full path + filename
+          description: 'The regexp which will be matched against the full path + filename'
           required: true
           schema:
             type: string
             example: '.*/harvest_246/.*2020-12-02.*\\.warc.*'
         - name: max
           in: query
-          description: The maximum number of entries to return, -1 if there is no limit
+          description: 'The maximum number of entries to return, -1 if there is no limit'
           required: false
           schema:
             type: integer
@@ -94,7 +122,7 @@ paths:
             default: 1000
       responses:
         '200':
-          description: A list with the path, filename and lastSeen timestamps for the matches. The list can be empty
+          description: 'A list with the path, filename and lastSeen timestamps for the matches. The list can be empty'
           content:
             application/json:
               schema:
@@ -114,7 +142,7 @@ paths:
       operationId: getStatus
       responses:
         '200':
-          description: A JSON structure containing the status of the service (number of files etc.)
+          description: 'A JSON structure containing the status of the service (number of files etc.)'
           content:
             application/json:
               schema:

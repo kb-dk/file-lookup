@@ -11,7 +11,10 @@ import dk.kb.lookup.webservice.exception.NoContentServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.validation.constraints.NotNull;
 import java.util.*;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -26,6 +29,7 @@ public class MemoryImpl implements DefaultApi {
 
     private static List<String> roots = LookupServiceConfig.getConfig().getList(".config.roots");
     private final static Map<String, FileEntry> filenameMap = new HashMap<>();
+    private final static ReadWriteLock locks = new ReentrantReadWriteLock();
 
     /**
      * Get the entries (path, filename and lastSeen) for a given regexp
@@ -36,11 +40,16 @@ public class MemoryImpl implements DefaultApi {
         Pattern pattern = Pattern.compile(regexp);
         final int limit = max == -1 ? Integer.MAX_VALUE : max;
 
-        return filenameMap.values().stream().
-                filter(entry -> pattern.matcher(entry.getFullpath()).matches()).
-                limit(limit).
-                map(this::toReplyEntry).
-                collect(Collectors.toList());
+        try {
+            locks.readLock().lock();
+            return filenameMap.values().stream().
+                    filter(entry -> pattern.matcher(entry.getFullpath()).matches()).
+                    limit(limit).
+                    map(this::toReplyEntry).
+                    collect(Collectors.toList());
+        } finally {
+            locks.readLock().unlock();
+        }
     }
 
     /**
@@ -49,11 +58,35 @@ public class MemoryImpl implements DefaultApi {
      */
     @Override
     public EntryReplyDto getEntryFromFilename(String filename) {
-        FileEntry entry = filenameMap.get(filename);
-        if (entry != null) {
-            return toReplyEntry(entry);
+        FileEntry entry;
+        try {
+            locks.readLock().lock();
+            entry = filenameMap.get(filename);
+            if (entry != null) {
+                return toReplyEntry(entry);
+            }
+            throw new NoContentServiceException("Unable to locate an entry for '" + filename + "'");
+        } finally {
+            locks.readLock().unlock();
         }
-        throw new NoContentServiceException("Unable to locate an entry for '" + filename + "'");
+    }
+
+    /**
+     * Get the entries (path, filename and lastSeen) for multiple filenames filenames
+     *
+     */
+    @Override
+    public List<EntryReplyDto> getEntriesFromFilename(List<String> filenames) {
+        try {
+            locks.readLock().lock();
+            return filenames.stream().
+                    map(filenameMap::get).
+                    filter(Objects::nonNull).
+                    map(this::toReplyEntry).
+                    collect(Collectors.toList());
+        } finally {
+            locks.readLock().unlock();
+        }
     }
 
     /**
@@ -108,10 +141,11 @@ public class MemoryImpl implements DefaultApi {
                 filter(root -> pattern.matcher(root).matches()).
                 collect(Collectors.toList());
 
-        // TODO: Better return message
+        final long startTime = System.currentTimeMillis();
         if (scanRoots.isEmpty() ||
             !ScanBot.instance().isReady() ||
-            !ScanBot.instance().startScan(scanRoots, this::acceptFolder)) {
+            !ScanBot.instance().startScan(scanRoots, this::acceptFolder, new Purger(scanRoots, startTime))) {
+            // TODO: Better return message
             RootsReplyDto response = new RootsReplyDto();
             response.setRoots(Collections.emptyList());
             return response;
@@ -122,11 +156,56 @@ public class MemoryImpl implements DefaultApi {
         return response;
     }
 
-    private void acceptFolder(ScanBot.Folder folder) {
+    /**
+     * Removes entries under the given roots that are older than minTime,
+     */
+    private static class Purger implements Runnable {
+        final List<String> roots;
+        final long minTime;
 
+        /**
+         * @param roots the roots to consider when removing entries.
+         * @param minTime the minimum time for an entry under the roots to be preserved.
+         */
+        public Purger(List<String> roots, long minTime) {
+            this.roots = roots;
+            this.minTime = minTime;
+        }
+
+        @Override
+        public void run() {
+            long purgeCount = 0;
+            try {
+                locks.writeLock().lock();
+                Iterator<Map.Entry<String, FileEntry>> entries = filenameMap.entrySet().iterator();
+                while (entries.hasNext()) {
+                    FileEntry entry = entries.next().getValue();
+                    if (entry.lastSeen < minTime) { // Old entry. Check if it was under one of the scanned roots
+                        for (String root : roots) {
+                            if (entry.path.startsWith(root)) { // Old and under one of the roots: Purge it
+                                entries.remove();
+                                purgeCount++;
+                                break;
+                            }
+                        }
+                    }
+                }
+            } finally {
+                locks.writeLock().unlock();
+            }
+            log.debug("Purged " + purgeCount + " entries for deleted files for roots '" + roots);
+        }
+    }
+
+
+    private void acceptFolder(ScanBot.Folder folder) {
         log.debug("acceptFolder(" + folder + ") called");
-        // TODO: Delete all folder content from MemoryImpl before adding new
-        folder.forEach(entry -> filenameMap.put(entry.filename, entry));
+        try {
+            locks.writeLock().lock();
+            folder.forEach(entry -> filenameMap.put(entry.filename, entry));
+        } finally {
+            locks.writeLock().unlock();
+        }
         log.debug("Filecount after accept=" + filenameMap.size());
     }
 
