@@ -159,7 +159,7 @@ paths:
       operationId: getStatus
       responses:
         '200':
-          description: 'A JSON structure containing the status of the service (number of files etc.)'
+          description: 'A structure containing the status of the service (number of files etc.)'
           content:
             application/json:
               schema:
@@ -228,6 +228,21 @@ components:
         general:
           type: string
           description: 'Human readable status'
+        roots:
+          type: array
+          items:
+            type: string
+          description: 'List of tracked roots (file paths)'
+        files:
+          type: integer
+          description: 'The number of files known by the service'
+        state:
+          type: string
+          enum: [idle, scanning]
+          description: 'Whether the service is actively scanning for changes or if it is idle'
+        currentScanFolder:
+          type: string
+          description: 'If the service is actively scanning, whis is the folder being scanned'
 
     RootsReply:
       type: object
@@ -238,7 +253,7 @@ components:
           type: array
           items:
             type: string
-          description: 'List of roots (file paths)'
+          description: 'List of tracked roots (file paths)'
 
     EntryReply:
       type: object

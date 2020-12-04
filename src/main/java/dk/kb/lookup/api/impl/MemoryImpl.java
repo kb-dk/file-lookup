@@ -77,29 +77,6 @@ public class MemoryImpl implements DefaultApi {
     final static SimpleDateFormat iso8601 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.ENGLISH);
 
 
-
-    /**
-     * Get the entries (path, filename and lastSeen) for a given regexp
-     *
-     */
-    public List<EntryReplyDto> getEntriesFromRegexp(String regexp, Integer max) {
-        Pattern pattern = Pattern.compile(regexp);
-        final int limit = max == -1 ? Integer.MAX_VALUE : max;
-
-        try {
-            locks.readLock().lock();
-            return filenameMap.values().stream().
-                    filter(entry -> pattern.matcher(entry.getFullpath()).matches()).
-                    limit(limit).
-                    map(this::toReplyEntry).
-                    collect(Collectors.toList());
-        } finally {
-            locks.readLock().unlock();
-        }
-    }
-
-
-
     /**
      * Get the entry (path, filename and lastSeen) for a given filename
      *
@@ -166,6 +143,12 @@ public class MemoryImpl implements DefaultApi {
     public StatusReplyDto getStatus() {
         StatusReplyDto response = new StatusReplyDto();
         response.setGeneral(String.format(Locale.ENGLISH, "%d roots, %d files", roots.size(), filenameMap.size()));
+        response.setRoots(roots);
+        response.setFiles(filenameMap.size());
+        response.setState(ScanBot.instance().getState() == ScanBot.STATE.idle ?
+                                  StatusReplyDto.StateEnum.IDLE :
+                                  StatusReplyDto.StateEnum.SCANNING);
+        response.setCurrentScanFolder(ScanBot.instance().getActivePath());
         return response;
     }
 

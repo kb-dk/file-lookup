@@ -32,9 +32,9 @@ import java.util.function.Consumer;
 public class ScanBot {
     private final Logger log = LoggerFactory.getLogger(getClass());
 
-    public enum STATE {scanning, ready}
+    public enum STATE {scanning, idle}
 
-    private STATE state = STATE.ready;
+    private STATE state = STATE.idle;
     private static ScanBot instance;
     private List<String> activeRoots = null;
     private String activePath = null;
@@ -77,7 +77,7 @@ public class ScanBot {
             } catch (Exception e) {
                 log.error("Exception during scan of " + activeRoots, e);
             } finally {
-                state = STATE.ready;
+                state = STATE.idle;
                 activeRoots = null;
                 activePath = null;
             }
@@ -100,7 +100,7 @@ public class ScanBot {
     }
 
     public boolean isReady() {
-        return state == STATE.ready;
+        return state == STATE.idle;
     }
 
     /**

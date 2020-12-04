@@ -105,6 +105,7 @@ class MemoryImplTest {
                         "Requesting 1 second later than first entry should result in another number of entries returned");
     }
 
+    @SuppressWarnings("BusyWait")
     private static DefaultApi setupTestImpl(Path root) throws IOException, InterruptedException {
         Path[] files = new Path[]{
                 Paths.get(root.toString(), "file1"),
@@ -124,9 +125,16 @@ class MemoryImplTest {
         }
 
         MemoryImpl impl = new MemoryImpl();
+        assertEquals("idle", impl.getStatus().getState(), "Before scanning, the ScanBot should be idle");
 
         assertFalse(impl.startScan(".*").getRoots().isEmpty(), "At least 1 root should be scanned");
-        Thread.sleep(1000); // TODO: Make a proper wait
+
+        final long maxTime = System.currentTimeMillis()+60000; // 1 minute is insanely overkill, but we err on the side of caution
+        while (System.currentTimeMillis() < maxTime && !impl.getStatus().getState().equals("idle")) {
+            Thread.sleep(10); // Yeah, busy wait. Hard to avoid without adding a callback to ScanBot
+        }
+        assertEquals("idle", impl.getStatus().getState(), "After waiting for scan to stop, the ScanBot should be idle");
+
         assertEquals(files.length, impl.getFilecount(), "There should be the expected number of files");
 
         return impl;

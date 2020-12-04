@@ -2,13 +2,11 @@ package dk.kb.lookup.api.impl;
 
 import dk.kb.lookup.api.*;
 import java.util.ArrayList;
-
 import dk.kb.lookup.model.EntriesRequestDto;
 import dk.kb.lookup.model.EntryReplyDto;
 import dk.kb.lookup.model.ErrorDto;
 import java.util.List;
 import java.util.Map;
-import dk.kb.lookup.model.ParamDto;
 import dk.kb.lookup.model.RootsReplyDto;
 import dk.kb.lookup.model.StatusReplyDto;
 
@@ -40,14 +38,14 @@ public class DefaultApiServiceImpl implements DefaultApi {
      *
      */
     @Override
-    public List<EntryReplyDto> getEntries(EntriesRequestDto param, Integer max) {
+    public List<EntryReplyDto> getEntries(EntriesRequestDto entriesRequest, Integer max) {
         // TODO: Implement...
         List<EntryReplyDto> response = new ArrayList<>();
         EntryReplyDto item = new EntryReplyDto();
-        item.setPath("oOPCdo0J");
-        item.setFilename("T5T7v");
-        item.setLastSeen("DWC22");
-        item.setLastSeenEpochMS(2267730128045207552L);
+        item.setPath("rjh7EJ4o");
+        item.setFilename("pu498VK");
+        item.setLastSeen("ExHbM1");
+        item.setLastSeenEpochMS(-4581060747177314304L);
         response.add(item);
         return response;
     }
@@ -61,10 +59,10 @@ public class DefaultApiServiceImpl implements DefaultApi {
         // TODO: Implement...
         List<EntryReplyDto> response = new ArrayList<>();
         EntryReplyDto item = new EntryReplyDto();
-        item.setPath("Ejcyezm0BvZ3M5");
-        item.setFilename("V1NXTQ1M");
-        item.setLastSeen("I9evB8");
-        item.setLastSeenEpochMS(1963752492612741120L);
+        item.setPath("KEbPS");
+        item.setFilename("wAhvs9i");
+        item.setLastSeen("D2UgVR2");
+        item.setLastSeenEpochMS(6379308956885094400L);
         response.add(item);
         return response;
     }
@@ -77,10 +75,10 @@ public class DefaultApiServiceImpl implements DefaultApi {
     public EntryReplyDto getEntryFromFilename(String filename) {
         // TODO: Implement...
         EntryReplyDto response = new EntryReplyDto();
-        response.setPath("y3JDM");
-        response.setFilename("Se05y");
-        response.setLastSeen("tL7sS4");
-        response.setLastSeenEpochMS(1217444224118642688L);
+        response.setPath("uynk8x");
+        response.setFilename("ghmpsK");
+        response.setLastSeen("DcnOk5Q");
+        response.setLastSeenEpochMS(7880842345871437824L);
         return response;
     }
 
@@ -91,7 +89,7 @@ public class DefaultApiServiceImpl implements DefaultApi {
     @Override
     public Integer getFilecount() {
         // TODO: Implement...
-        Integer response = -1984007099;
+        Integer response = -1528319574;
         return response;
     }
 
@@ -104,7 +102,7 @@ public class DefaultApiServiceImpl implements DefaultApi {
         // TODO: Implement...
         RootsReplyDto response = new RootsReplyDto();
         List<String> roots = new ArrayList<>();
-        roots.add("wfdl73");
+        roots.add("cHD9dr44x");
         response.setRoots(roots);
         return response;
     }
@@ -117,7 +115,13 @@ public class DefaultApiServiceImpl implements DefaultApi {
     public StatusReplyDto getStatus() {
         // TODO: Implement...
         StatusReplyDto response = new StatusReplyDto();
-        response.setGeneral("IT6E2");
+        response.setGeneral("Cn4SAKWA751");
+        List<String> roots = new ArrayList<>();
+        roots.add("uQ9fPSTv");
+        response.setRoots(roots);
+        response.setFiles(-2009464021);
+        response.setState(StatusReplyDto.StateEnum.SCANNING);
+        response.setCurrentScanFolder("M55t1");
         return response;
     }
 
@@ -128,7 +132,7 @@ public class DefaultApiServiceImpl implements DefaultApi {
     @Override
     public String ping() {
         // TODO: Implement...
-        String response = "urTOJ";
+        String response = "olt3B4";
         return response;
     }
 
@@ -141,7 +145,7 @@ public class DefaultApiServiceImpl implements DefaultApi {
         // TODO: Implement...
         RootsReplyDto response = new RootsReplyDto();
         List<String> roots = new ArrayList<>();
-        roots.add("vOzC71");
+        roots.add("OW5cP9W315L4");
         response.setRoots(roots);
         return response;
     }
