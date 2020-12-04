@@ -1,5 +1,6 @@
 package dk.kb.lookup.api.impl;
 
+import com.google.common.io.Files;
 import dk.kb.lookup.FileEntry;
 import dk.kb.lookup.ScanBot;
 import dk.kb.lookup.api.DefaultApi;
@@ -13,6 +14,8 @@ import dk.kb.lookup.webservice.exception.NoContentServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.io.FileReader;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -167,6 +170,7 @@ public class MemoryImpl implements DefaultApi {
      */
     @Override
     public RootsReplyDto startScan(String rootPattern) {
+        log.debug("startScan(rootPattern=" + rootPattern + ") called");
         Pattern pattern = Pattern.compile(rootPattern);
         List<String> scanRoots = roots.stream().
                 filter(root -> pattern.matcher(root).matches()).
@@ -186,6 +190,67 @@ public class MemoryImpl implements DefaultApi {
         response.setRoots(scanRoots);
         return response;
     }
+
+    /**
+     * Inform the service of an added files. If a file is already known, its timestamp is updated
+     *
+     */
+    @Override
+    public List<String> addFiles(List<String> files, Boolean validate) {
+        log.debug("addFiles(#" + files.size() + " files, validate=" + validate + ") called");
+        List<String> feedback = new ArrayList<>(files.size());
+        List<FileEntry> keep = new ArrayList<>(files.size());
+        for (String fileStr: files) {
+            File file = new File(fileStr);
+            if (validate && !file.isFile()) {
+                continue;
+            }
+            feedback.add(fileStr);
+            keep.add(new FileEntry(file.getPath(), file.getName()));
+        }
+
+        log.debug("addFiles adding " + keep.size() + "/" + files.size() + " files");
+        try {
+            locks.writeLock().lock();
+            keep.forEach(entry -> filenameMap.put(entry.filename, entry));
+        } finally {
+            locks.writeLock().unlock();
+        }
+
+        return feedback;
+    }
+
+    /**
+     * Inform the service of removed files
+     *
+     */
+    @Override
+    public List<String> removeFiles(List<String> files, Boolean validate) {
+        log.debug("removeFiles(#" + files.size() + " files, validate=" + validate + ") called");
+        List<String> feedback = new ArrayList<>(files.size());
+        List<FileEntry> remove = new ArrayList<>(files.size());
+        for (String fileStr: files) {
+            File file = new File(fileStr);
+            if (validate && file.isFile()) {
+                continue;
+            }
+            feedback.add(fileStr);
+            remove.add(new FileEntry(file.getPath(), file.getName()));
+        }
+
+        log.debug("removeFiles removing " + remove.size() + "/" + files.size() + " files");
+        try {
+            locks.writeLock().lock();
+            remove.forEach(entry -> filenameMap.remove(entry.filename));
+        } finally {
+            locks.writeLock().unlock();
+        }
+
+        return feedback;
+    }
+
+    /* ----------------------------------------------------------------------------------- */
+
 
     /**
      * Removes entries under the given roots that are older than minTime,
@@ -237,10 +302,8 @@ public class MemoryImpl implements DefaultApi {
         } finally {
             locks.writeLock().unlock();
         }
-        log.debug("Filecount after accept=" + filenameMap.size());
+        log.debug("File count after accept=" + filenameMap.size());
     }
-
-    /* ----------------------------------------------------------------------------------- */
 
     private EntryReplyDto toReplyEntry(FileEntry fileEntry) {
         EntryReplyDto item = new EntryReplyDto();

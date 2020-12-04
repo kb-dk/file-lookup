@@ -210,12 +210,68 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RootsReply'
-        '500':
-          description: 'Internal Error'
+
+  /control/addFiles:
+    get:
+      summary: 'Inform the service of an added files. If a file is already known, its timestamp is updated'
+      operationId: addFiles
+      parameters:
+        - name: file
+          in: query
+          description: 'Paths and filenames of the files'
+          required: true
+          schema:
+            type: array
+            items:
+              type: string
+            example: ['/mnt/archive/warcs/0003/02/harvest_2020-12-04T16:00.warc.gz', '/mnt/archive/warcs/0003/02/harvest_meta_2020-12-04T16:00.warc.gz']
+        - name: validate
+          in: query
+          description: 'Whether or not the files existence should be validated before adding'
+          required: false
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: 'An list of the added files. This will always be equal to the input if validate is false'
           content:
-            application/json:
+            text/plain:
               schema:
-                $ref: '#/components/schemas/Error'
+                type: array
+                items:
+                  type: string
+
+  /control/removeFiles:
+    get:
+      summary: 'Inform the service of removed files'
+      operationId: removeFiles
+      parameters:
+        - name: file
+          in: query
+          description: 'Paths and filenames of the files'
+          required: true
+          schema:
+            type: array
+            items:
+              type: string
+            example: ['/mnt/archive/warcs/0003/02/harvest_2020-12-04T16:00.warc.gz', '/mnt/archive/warcs/0003/02/harvest_meta_2020-12-04T16:00.warc.gz']
+        - name: validate
+          in: query
+          description: 'Whether or not the files existence should be validated before removing. If it still exists it will not be removed'
+          required: false
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: 'An list of the removed files. This will always be equal to the input if validate is false'
+          content:
+            text/plain:
+              schema:
+                type: array
+                items:
+                  type: string
 
 components:
   schemas:

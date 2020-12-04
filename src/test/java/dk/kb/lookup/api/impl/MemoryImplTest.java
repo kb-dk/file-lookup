@@ -16,6 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.ParseException;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
@@ -50,6 +51,34 @@ class MemoryImplTest {
     @Test
     void testFilenameLookup()  {
         impl.getEntryFromFilename("file1");
+    }
+
+    @Test
+    void testRemoveNonValidating() throws InterruptedException {
+        EntryReplyDto f1 = impl.getEntryFromFilename("file1");
+        assertEquals(1, impl.removeFiles(Collections.singletonList(f1.getPath() + "/" + f1.getFilename()), false).size(),
+                "The expected number of entries should be removed without validation");
+        try {
+            impl.getEntryFromFilename("file1"); // Should fail
+            fail("Removing of the file 'file1' failed");
+        } catch (NoContentServiceException e) {
+            performScan(impl); // Rediscover
+            impl.getEntryFromFilename("file1"); // Should not fail now
+        }
+    }
+
+    @Test
+    void testRemoveValidatingExisting() {
+        EntryReplyDto f1 = impl.getEntryFromFilename("file1");
+        assertTrue(impl.removeFiles(Collections.singletonList(f1.getPath() + "/" + f1.getFilename()), true).isEmpty(),
+                   "Nothing should be removed");
+        impl.getEntryFromFilename("file1"); // Should still work fine
+    }
+
+    @Test
+    void testRemoveValidatingNonExisting() {
+        assertEquals(1, impl.removeFiles(Collections.singletonList("/foo/bar.zoo"), true).size(),
+                "The expected number of entries should be removed");
     }
 
     @Test
@@ -105,7 +134,6 @@ class MemoryImplTest {
                         "Requesting 1 second later than first entry should result in another number of entries returned");
     }
 
-    @SuppressWarnings("BusyWait")
     private static DefaultApi setupTestImpl(Path root) throws IOException, InterruptedException {
         Path[] files = new Path[]{
                 Paths.get(root.toString(), "file1"),
@@ -124,19 +152,22 @@ class MemoryImplTest {
             }
         }
 
-        MemoryImpl impl = new MemoryImpl();
+        DefaultApi impl = new MemoryImpl();
         assertEquals("idle", impl.getStatus().getState(), "Before scanning, the ScanBot should be idle");
 
-        assertFalse(impl.startScan(".*").getRoots().isEmpty(), "At least 1 root should be scanned");
+        performScan(impl);
+        assertEquals(files.length, impl.getFilecount(), "There should be the expected number of files");
 
+        return impl;
+    }
+
+    @SuppressWarnings("BusyWait")
+    private static void performScan(DefaultApi impl) throws InterruptedException {
+        assertFalse(impl.startScan(".*").getRoots().isEmpty(), "At least 1 root should be scanned");
         final long maxTime = System.currentTimeMillis()+60000; // 1 minute is insanely overkill, but we err on the side of caution
         while (System.currentTimeMillis() < maxTime && !impl.getStatus().getState().equals("idle")) {
             Thread.sleep(10); // Yeah, busy wait. Hard to avoid without adding a callback to ScanBot
         }
         assertEquals("idle", impl.getStatus().getState(), "After waiting for scan to stop, the ScanBot should be idle");
-
-        assertEquals(files.length, impl.getFilecount(), "There should be the expected number of files");
-
-        return impl;
     }
 }

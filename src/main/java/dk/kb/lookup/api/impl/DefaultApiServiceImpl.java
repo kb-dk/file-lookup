@@ -34,6 +34,18 @@ import io.swagger.annotations.Api;
  */
 public class DefaultApiServiceImpl implements DefaultApi {
     /**
+     * Inform the service of an added files. If a file is already known, its timestamp is updated
+     *
+     */
+    @Override
+    public List<String> addFiles(List<String> file, Boolean validate) {
+        // TODO: Implement...
+        List<String> response = new ArrayList<>();
+        response.add("qvNn0fq3V");
+        return response;
+    }
+
+    /**
      * Get the entries (path, filename and lastSeen) based on a given regexp or start time. Note that this is potentially a heavy request
      *
      */
@@ -42,10 +54,10 @@ public class DefaultApiServiceImpl implements DefaultApi {
         // TODO: Implement...
         List<EntryReplyDto> response = new ArrayList<>();
         EntryReplyDto item = new EntryReplyDto();
-        item.setPath("rjh7EJ4o");
-        item.setFilename("pu498VK");
-        item.setLastSeen("ExHbM1");
-        item.setLastSeenEpochMS(-4581060747177314304L);
+        item.setPath("ZmOP0e");
+        item.setFilename("AtwV7");
+        item.setLastSeen("jwaw5");
+        item.setLastSeenEpochMS(7593289901101535232L);
         response.add(item);
         return response;
     }
@@ -59,10 +71,10 @@ public class DefaultApiServiceImpl implements DefaultApi {
         // TODO: Implement...
         List<EntryReplyDto> response = new ArrayList<>();
         EntryReplyDto item = new EntryReplyDto();
-        item.setPath("KEbPS");
-        item.setFilename("wAhvs9i");
-        item.setLastSeen("D2UgVR2");
-        item.setLastSeenEpochMS(6379308956885094400L);
+        item.setPath("Eeqpt");
+        item.setFilename("Q5ptm");
+        item.setLastSeen("rhvVoW5Xtc");
+        item.setLastSeenEpochMS(6307370278029373440L);
         response.add(item);
         return response;
     }
@@ -75,10 +87,10 @@ public class DefaultApiServiceImpl implements DefaultApi {
     public EntryReplyDto getEntryFromFilename(String filename) {
         // TODO: Implement...
         EntryReplyDto response = new EntryReplyDto();
-        response.setPath("uynk8x");
-        response.setFilename("ghmpsK");
-        response.setLastSeen("DcnOk5Q");
-        response.setLastSeenEpochMS(7880842345871437824L);
+        response.setPath("njqBW");
+        response.setFilename("kCQoat1");
+        response.setLastSeen("Uqh0w");
+        response.setLastSeenEpochMS(2989570608208822272L);
         return response;
     }
 
@@ -89,7 +101,7 @@ public class DefaultApiServiceImpl implements DefaultApi {
     @Override
     public Integer getFilecount() {
         // TODO: Implement...
-        Integer response = -1528319574;
+        Integer response = 1491044217;
         return response;
     }
 
@@ -102,7 +114,7 @@ public class DefaultApiServiceImpl implements DefaultApi {
         // TODO: Implement...
         RootsReplyDto response = new RootsReplyDto();
         List<String> roots = new ArrayList<>();
-        roots.add("cHD9dr44x");
+        roots.add("D1DKNx");
         response.setRoots(roots);
         return response;
     }
@@ -115,13 +127,13 @@ public class DefaultApiServiceImpl implements DefaultApi {
     public StatusReplyDto getStatus() {
         // TODO: Implement...
         StatusReplyDto response = new StatusReplyDto();
-        response.setGeneral("Cn4SAKWA751");
+        response.setGeneral("Gh281");
         List<String> roots = new ArrayList<>();
-        roots.add("uQ9fPSTv");
+        roots.add("fCUDRK");
         response.setRoots(roots);
-        response.setFiles(-2009464021);
-        response.setState(StatusReplyDto.StateEnum.SCANNING);
-        response.setCurrentScanFolder("M55t1");
+        response.setFiles(368767240);
+        response.setState(StatusReplyDto.StateEnum.IDLE);
+        response.setCurrentScanFolder("b8V4t");
         return response;
     }
 
@@ -132,7 +144,19 @@ public class DefaultApiServiceImpl implements DefaultApi {
     @Override
     public String ping() {
         // TODO: Implement...
-        String response = "olt3B4";
+        String response = "Hn373M";
+        return response;
+    }
+
+    /**
+     * Inform the service of removed files
+     *
+     */
+    @Override
+    public List<String> removeFiles(List<String> file, Boolean validate) {
+        // TODO: Implement...
+        List<String> response = new ArrayList<>();
+        response.add("J9ywU3");
         return response;
     }
 
@@ -145,7 +169,7 @@ public class DefaultApiServiceImpl implements DefaultApi {
         // TODO: Implement...
         RootsReplyDto response = new RootsReplyDto();
         List<String> roots = new ArrayList<>();
-        roots.add("OW5cP9W315L4");
+        roots.add("Qg9eT7baL");
         response.setRoots(roots);
         return response;
     }
