@@ -2,7 +2,7 @@ package dk.kb.lookup.config;
 
 import java.io.IOException;
 
-import dk.kb.lookup.webservice.LookupContextListener;
+import dk.kb.webservice.ContextListener;
 import dk.kb.util.yaml.YAML;
 
 /**
@@ -19,7 +19,7 @@ public class LookupServiceConfig {
 
     /**
      * Initialized the configuration from the provided configFile.
-     * This should normally be called from {@link LookupContextListener} as
+     * This should normally be called from {@link ContextListener} as
      * part of web server initialization of the container.
      * @param configFile the configuration to load.
      * @throws IOException if the configuration could not be loaded or parsed.

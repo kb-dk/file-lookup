@@ -1,4 +1,4 @@
-package dk.kb.lookup.webservice.exception;
+package dk.kb.webservice.exception;
 
 
 import javax.ws.rs.core.Response;

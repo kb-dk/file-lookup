@@ -7,7 +7,7 @@ import dk.kb.lookup.config.LookupServiceConfig;
 import dk.kb.lookup.model.EntryReplyDto;
 import dk.kb.lookup.model.RootsReplyDto;
 import dk.kb.lookup.model.StatusReplyDto;
-import dk.kb.lookup.webservice.exception.NoContentServiceException;
+import dk.kb.webservice.exception.NoContentServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

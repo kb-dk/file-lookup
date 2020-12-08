@@ -34,6 +34,6 @@
     </servlet-mapping>
 
     <listener>
-        <listener-class>dk.kb.lookup.webservice.LookupContextListener</listener-class>
+        <listener-class>dk.kb.webservice.ContextListener</listener-class>
     </listener>
 </web-app>

@@ -1,4 +1,4 @@
-package dk.kb.lookup.webservice;
+package dk.kb.webservice;
 
 import java.io.IOException;
 
@@ -16,7 +16,7 @@ import org.slf4j.LoggerFactory;
  * context is deployed/initalized.
  */
 
-public class LookupContextListener implements ServletContextListener {
+public class ContextListener implements ServletContextListener {
     private final Logger log = LoggerFactory.getLogger(getClass());
 
 
@@ -30,7 +30,7 @@ public class LookupContextListener implements ServletContextListener {
     @Override
     public void contextInitialized(ServletContextEvent sce) {
         try {
-            log.info("Initializing Template service v{}", getClass().getPackage().getImplementationVersion());
+            log.info("Initializing service v{}", getClass().getPackage().getImplementationVersion());
             InitialContext ctx = new InitialContext();
             String configFile = (String) ctx.lookup("java:/comp/env/application-config");
             LookupServiceConfig.initialize(configFile);
@@ -38,7 +38,7 @@ public class LookupContextListener implements ServletContextListener {
             throw new RuntimeException("Failed to lookup settings", e);
         } catch (IOException e) {
             throw new RuntimeException("Failed to load settings", e);        } 
-        log.info("Template service initialized.");
+        log.info("Service initialized.");
     }
 
 
