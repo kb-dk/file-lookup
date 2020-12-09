@@ -4,7 +4,6 @@ import dk.kb.lookup.FileEntry;
 import dk.kb.lookup.ScanBot;
 import dk.kb.lookup.api.MergedApi;
 import dk.kb.lookup.config.LookupServiceConfig;
-import dk.kb.lookup.model.EntriesRequestDto;
 import dk.kb.lookup.model.EntryReplyDto;
 import dk.kb.lookup.model.RootsReplyDto;
 import dk.kb.lookup.model.StatusReplyDto;
@@ -41,7 +40,11 @@ public class MemoryImpl implements MergedApi {
     /**
      * Get the entries (path, filename and lastSeen) based on a given regexp or start time. Note that this is potentially a heavy request
      *
-     * @param entriesRequest:
+     * @param regexp: The regexp which will be matched against the full path + filename
+     *
+     * @param since: Only entries newer than this will be returned
+     *
+     * @param sinceEpochMS: Only entries newer than this will be returned
      *
      * @param max: The maximum number of entries to return, -1 if there is no limit
      *
@@ -54,18 +57,15 @@ public class MemoryImpl implements MergedApi {
       * @implNote return will always produce a HTTP 200 code. Throw ServiceException if you need to return other codes
      */
     @Override
-    public List<EntryReplyDto> getEntries(EntriesRequestDto entriesRequest, Integer max) {
-        long since = 0;
-        if (entriesRequest.getSinceEpochMS() != null) {
-            since = Math.max(since, entriesRequest.getSinceEpochMS());
+    public List<EntryReplyDto> getEntries(String regexp, String since, Long sinceEpochMS, Integer max) throws ServiceException {
+        long sinceEpoch = sinceEpochMS == null ? 0 : sinceEpochMS;
+        if (since != null) {
+            sinceEpoch = Math.max(sinceEpoch, toEpoch(since));
         }
-        if (entriesRequest.getSince() != null) {
-            since = Math.max(since,  toEpoch(entriesRequest.getSince()));
-        }
-        final long finalSince = since;
+        final long finalSince = sinceEpoch;
 
         final int limit = max == -1 ? Integer.MAX_VALUE : max;
-        Pattern pattern = entriesRequest.getRegexp() == null ? null : Pattern.compile(entriesRequest.getRegexp());
+        Pattern pattern = regexp == null ? null : Pattern.compile(regexp);
 
         try {
             locks.readLock().lock();

@@ -163,6 +163,8 @@ public class ScanBot {
      * Note that this list does not contain sub-folders.
      */
     public static class Folder extends ArrayList<FileEntry> {
+        private static final long serialVersionUID = 8623252581122592189L;
+        
         public final String folder;
         public int subFolderCount = 0;
 

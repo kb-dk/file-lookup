@@ -88,32 +88,32 @@ paths:
                 Note that this is potentially a heavy request'
       operationId: getEntries
       parameters:
-        - name: entriesRequest
+        - name: regexp
           in: query
-          required: true
+          required: false
+          description: 'The regexp which will be matched against the full path + filename'
           schema:
-            type: object
-            properties:
-              regexp:
-                description: 'The regexp which will be matched against the full path + filename'
-                type: string
-                example: '.*/harvest_246/.*2020-12-02.*\\.warc.*'
-              since:
-                description: 'Only entries newer than this will be returned'
-                type: string
-                example: '2020-12-04T15:01:13Z'
-              sinceEpochMS:
-                description: 'Only entries newer than this will be returned'
-                type: integer
-                format: int64
-                example: 1607090473802
-            additionalProperties: false
-            minProperties: 1
-
+            type: string
+            example: '.*/harvest_246/.*2020-12-02.*\\.warc.*'
+        - name: since
+          in: query
+          required: false
+          description: 'Only entries newer than this will be returned'
+          schema:
+            type: string
+            example: '2020-12-04T15:01:13Z'
+        - name: sinceEpochMS
+          in: query
+          required: false
+          description: 'Only entries newer than this will be returned'
+          schema:
+            type: integer
+            format: int64
+          example: 1607090473802
         - name: max
           in: query
-          description: 'The maximum number of entries to return, -1 if there is no limit'
           required: false
+          description: 'The maximum number of entries to return, -1 if there is no limit'
           schema:
             type: integer
             example: 100

@@ -4,3 +4,9 @@
 .settings/
 
 .openapi-generator/
+
+# We don't want to put these in the repo as we only copy from them to
+# the real implementations
+ControlApiServiceImpl.java
+LookupApiServiceImpl.java
+StatusApiServiceImpl.java

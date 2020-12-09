@@ -2,7 +2,6 @@ package dk.kb.lookup.api.impl;
 
 import dk.kb.lookup.api.MergedApi;
 import dk.kb.lookup.config.LookupServiceConfig;
-import dk.kb.lookup.model.EntriesRequestDto;
 import dk.kb.lookup.model.EntryReplyDto;
 import dk.kb.webservice.exception.NoContentServiceException;
 import org.junit.jupiter.api.BeforeAll;
@@ -94,24 +93,18 @@ class MemoryImplTest {
 
     @Test
     void testRegexpLookup() {
-        EntriesRequestDto request = new EntriesRequestDto();
-        request.setRegexp(".*1");
-        assertEquals(1, impl.getEntries(request, 100).size(), "The expected number of files should be located");
+        assertEquals(1, impl.getEntries(".*1", null, null, 100).size(), "The expected number of files should be located");
     }
 
     @Test
     void testTimeMSLookup()  {
         // Get the timestamp for an entry and the total entry count
-        EntriesRequestDto request = new EntriesRequestDto();
-        request.setRegexp(".*");
-        List<EntryReplyDto> all = impl.getEntries(request, Integer.MAX_VALUE);
+        List<EntryReplyDto> all = impl.getEntries(".*", null, null, Integer.MAX_VALUE);
         assertFalse(all.isEmpty(), "some files should be located");
         long firstTime = all.get(0).getLastSeenEpochMS();
 
-        // Try requesting a bit later
-        EntriesRequestDto timeRequest = new EntriesRequestDto();
-        timeRequest.setSinceEpochMS(firstTime+1); // 1 ms later than the first
-        List<EntryReplyDto> oneMsLater = impl.getEntries(timeRequest, Integer.MAX_VALUE);
+        // Try requesting a bit later (1 ms later than the first)
+        List<EntryReplyDto> oneMsLater = impl.getEntries(null, null, firstTime+1, Integer.MAX_VALUE);
         assertNotEquals(oneMsLater.size(), all.size(),
                         "Requesting 1 ms later than first entry should result in another number of entries returned");
     }
@@ -119,17 +112,14 @@ class MemoryImplTest {
     @Test
     void testTimeISOLookup() throws ParseException {
         // Get the timestamp for an entry and the total entry count
-        EntriesRequestDto request = new EntriesRequestDto();
-        request.setRegexp(".*");
-        List<EntryReplyDto> all = impl.getEntries(request, Integer.MAX_VALUE);
+        List<EntryReplyDto> all = impl.getEntries(".*", null, null, Integer.MAX_VALUE);
         assertFalse(all.isEmpty(), "some files should be located");
         String firstISO = all.get(0).getLastSeen();
         long firstTime = MemoryImpl.iso8601.parse(firstISO).getTime();
         
-        // Try requesting a bit later
-        EntriesRequestDto timeRequest = new EntriesRequestDto();
-        timeRequest.setSince(MemoryImpl.iso8601.format(new Date(firstTime+1000))); // 1 s later than the first
-        List<EntryReplyDto> oneMsLater = impl.getEntries(timeRequest, Integer.MAX_VALUE);
+        // Try requesting a bit later (1 s as ISO-time only goes down to 1 second granularity in this API)
+        String since = MemoryImpl.iso8601.format(new Date(firstTime+1000)); // 1 s later than the first
+        List<EntryReplyDto> oneMsLater = impl.getEntries(".*", since, null, Integer.MAX_VALUE);
         assertNotEquals(oneMsLater.size(), all.size(),
                         "Requesting 1 second later than first entry should result in another number of entries returned");
     }

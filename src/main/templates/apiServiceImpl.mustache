@@ -1,0 +1,130 @@
+package {{package}}.impl;
+
+import {{package}}.*;
+{{#imports}}import {{import}};
+{{/imports}}
+
+import dk.kb.webservice.exception.ServiceException;
+import dk.kb.webservice.exception.InternalServiceException;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.List;
+import java.util.Map;
+{{#generateOperationBody}}
+import java.io.File;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+{{#loadTestDataFromFile}}
+import org.openapitools.codegen.utils.JsonCache;
+import org.openapitools.codegen.utils.JsonCache.CacheException;
+{{/loadTestDataFromFile}}
+{{/generateOperationBody}}
+import javax.ws.rs.*;
+import javax.ws.rs.core.Response;
+import org.apache.cxf.jaxrs.model.wadl.Description;
+import org.apache.cxf.jaxrs.model.wadl.DocTarget;
+
+import org.apache.cxf.jaxrs.ext.multipart.*;
+
+import io.swagger.annotations.Api;
+{{#useSpringAnnotationConfig}}
+import org.springframework.stereotype.Service;
+{{/useSpringAnnotationConfig}}
+
+{{#useSpringAnnotationConfig}}
+@Service("{{classname}}")
+{{/useSpringAnnotationConfig}}
+{{#description}}
+{{/description}}
+{{#appName}}
+/**
+ * {{{appName}}}
+ *
+ {{#appDescription}}
+ * <p>{{{appDescription}}}
+ {{/appDescription}}
+ *
+ */
+{{/appName}}
+public class {{classname}}ServiceImpl implements {{classname}} {
+    private Logger log = LoggerFactory.getLogger(this.toString());
+
+{{#generateOperationBody}}
+{{#loadTestDataFromFile}}
+    private JsonCache cache;
+
+    {
+        try {
+            File cacheFile = new File(System.getProperty("jaxrs.test.server.json",
+                    "{{testDataFile}}"));
+            cache = JsonCache.Factory.instance.get("test-data").load(cacheFile).child("/{{invokerPackage}}/{{classname}}");
+        } catch (CacheException e) {
+            e.printStackTrace();
+        }
+    }
+
+{{/loadTestDataFromFile}}
+{{/generateOperationBody}}
+{{#operations}}
+{{#operation}}
+    {{#summary}}
+    /**
+     * {{summary}}
+     * {{#allParams}}
+     * @param {{baseName}}: {{description}}
+     * {{/allParams}}
+     * @return <ul>{{#responses}}
+      *   <li>code = {{{code}}}, message = "{{{message}}}"{{^vendorExtensions.x-java-is-response-void}}, response = {{{baseType}}}.class{{#containerType}}, responseContainer = "{{{containerType}}}"{{/containerType}}{{/vendorExtensions.x-java-is-response-void}}</li>{{/responses}}
+      *   </ul>
+      * @throws ServiceException when other http codes should be returned
+      *
+     {{#notes}}
+      * {{notes}}
+      *
+      {{/notes}}
+      * @implNote return will always produce a HTTP 200 code. Throw ServiceException if you need to return other codes
+     */
+    {{/summary}}
+    @Override
+    public {{>returnTypes}} {{operationId}}({{#allParams}}{{>queryParamsImpl}}{{>pathParamsImpl}}{{>headerParamsImpl}}{{>bodyParamsImpl}}{{>formParamsImpl}}{{#hasMore}}, {{/hasMore}}{{/allParams}}) throws ServiceException {
+    {{^loadTestDataFromFile}}
+        // TODO: Implement...
+    {{/loadTestDataFromFile}}
+{{! generic response:
+        }}{{#useGenericResponse}}return Response.ok().entity("magic!").build();{{/useGenericResponse}}{{!
+non-generic response: }}{{^useGenericResponse}}{{!
+non-void response: }}{{^vendorExtensions.x-java-is-response-void}}{{!
+pre-populated operation body: }}{{#generateOperationBody}}
+        try{
+    {{{vendorExtensions.x-java-operation-body}}}
+        } catch (Exception e){
+            throw handleException(e);
+        }{{/generateOperationBody}}{{!
+null response: }}{{^generateOperationBody}}                return null;{{/generateOperationBody}}{{!
+}}{{/vendorExtensions.x-java-is-response-void}}{{!
+}}{{/useGenericResponse}}
+    }
+
+{{/operation}}
+
+    /**
+    * This method simply converts any Exception into a Service exception
+    * @param e: Any kind of exception
+    * @return A ServiceException
+    * @see dk.kb.webservice.ServiceExceptionMapper
+    */
+    private ServiceException handleException(Exception e) {
+        if (e instanceof ServiceException) {
+            return (ServiceException) e; // Do nothing - this is a declared ServiceException from within module.
+        } else {// Unforseen exception (should not happen). Wrap in internal service exception
+            log.error("ServiceException(HTTP 500):", e); //You probably want to log this.
+            return new InternalServiceException(e.getMessage());
+        }
+    }
+
+}
+{{/operations}}
