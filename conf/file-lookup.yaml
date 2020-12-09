@@ -1,9 +1,27 @@
-config:
+lookup:
   # The roots to track. It is advisable to use absolute paths
   roots:
     - '/tmp'
-  # A scanInterval of -1 disables automatic scanning
-  scanIntervalSeconds: -1
+  # The backing implementation. Valid values are
+  #  'memory' (default): In-memory structure backed by a HashMap. Should be fine for a few million files
+  implementation: memory
+
+  autoscan:
+    # If true, a scan of all roots is performed on startup. Default is true
+    scanOnStartup: true
+
+    # If not -1, a scan is initiated at least every scanIntervalSeconds. There is at most 1 scan running.
+    # If a scan has not finished when the next scan is scheduled to start, a new scan will be initiated as soon as the
+    # current one finishes.
+    # The first interval-triggered scan will be initiated scanIntervalSeconds after startup.
+    # Default is -1 (disabled)
+    scanIntervalSeconds: 60
+
+    # The pattern to use when activating a background scan. The roots will be matched against the pattern and
+    # only the matching roots will be scanned.
+    # Default is '.*' (all roots)
+    scanRootPattern: ".*"
+
+
   # TODO: Implement these
-  scanOnStartup: true
   filePattern: '.*'

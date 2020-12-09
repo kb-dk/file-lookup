@@ -33,7 +33,7 @@ public class MemoryImpl implements MergedApi {
     private static final Logger log = LoggerFactory.getLogger(MemoryImpl.class);
 
     // Must be final as MemoryImpl are instantiated anew for each call
-    private final static List<String> roots = ServiceConfig.getConfig().getList(".config.roots");
+    private final static List<String> roots = ServiceConfig.getConfig().getList(".lookup.roots");
     private final static Map<String, FileEntry> filenameMap = new HashMap<>();
     private final static ReadWriteLock locks = new ReentrantReadWriteLock();
 
@@ -401,7 +401,7 @@ public class MemoryImpl implements MergedApi {
         } finally {
             locks.writeLock().unlock();
         }
-        log.debug("File count after accept=" + filenameMap.size());
+        //log.debug("File count after accept=" + filenameMap.size());
     }
 
     private EntryReplyDto toReplyEntry(FileEntry fileEntry) {

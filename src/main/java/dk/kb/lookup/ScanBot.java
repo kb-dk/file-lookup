@@ -131,7 +131,7 @@ public class ScanBot {
             return;
         }
 
-        log.debug("Scanning path " + path + "'");
+        //log.debug("Scanning path " + path + "'");
         activePath = path.toString();
         Folder folder = new Folder(path.toString());
         List<Path> subFolders = new ArrayList<>();
@@ -144,14 +144,13 @@ public class ScanBot {
                 }
             });
             folder.subFolderCount = subFolders.size();
-            log.debug(String.format(Locale.ENGLISH, "Finished scan of path '%s' with %d files and %d sub-folders. " +
-                                                    "Performing callback with result",
+            log.debug(String.format(Locale.ENGLISH, "Finished scan of path '%s' with %d files and %d sub-folders",
                                     path.toString(),  folder.size(), folder.subFolderCount));
             consumer.accept(folder);
         } catch (AccessDeniedException e) {
             log.debug("AccessDeniedException for path '" + path + "'");
         } catch (IOException e) {
-            log.warn("Exception while streaming the content of folder '" + path + "'", e);
+            log.warn("Exception while scanning the content of folder '" + path + "'", e);
         }
         activePath = null;
 
@@ -173,7 +172,7 @@ public class ScanBot {
         }
 
         public String toString() {
-            return "Folder(#files=" + size() + ", #subFolders=" + subFolderCount + ")";
+            return "Folder('" + folder + "', #files=" + size() + ", #subFolders=" + subFolderCount + ")";
         }
     }
 
