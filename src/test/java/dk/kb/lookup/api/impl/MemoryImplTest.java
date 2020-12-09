@@ -4,7 +4,7 @@ import dk.kb.lookup.api.DefaultApi;
 import dk.kb.lookup.config.LookupServiceConfig;
 import dk.kb.lookup.model.EntriesRequestDto;
 import dk.kb.lookup.model.EntryReplyDto;
-import dk.kb.lookup.webservice.exception.NoContentServiceException;
+import dk.kb.webservice.exception.NoContentServiceException;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
