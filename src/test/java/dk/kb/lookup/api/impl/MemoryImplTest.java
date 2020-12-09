@@ -1,6 +1,6 @@
 package dk.kb.lookup.api.impl;
 
-import dk.kb.lookup.api.DefaultApi;
+import dk.kb.lookup.api.MergedApi;
 import dk.kb.lookup.config.LookupServiceConfig;
 import dk.kb.lookup.model.EntriesRequestDto;
 import dk.kb.lookup.model.EntryReplyDto;
@@ -40,7 +40,7 @@ class MemoryImplTest {
     private static final Logger log = LoggerFactory.getLogger(MemoryImplTest.class);
 
     private static Path root = Paths.get("/tmp/file-lookup/"); // Should be requested from the system and the config adjusted
-    private static DefaultApi impl;
+    private static MergedApi impl;
 
     @BeforeAll
     static void useTestConfig() throws IOException, InterruptedException {
@@ -134,7 +134,7 @@ class MemoryImplTest {
                         "Requesting 1 second later than first entry should result in another number of entries returned");
     }
 
-    private static DefaultApi setupTestImpl(Path root) throws IOException, InterruptedException {
+    private static MergedApi setupTestImpl(Path root) throws IOException, InterruptedException {
         Path[] files = new Path[]{
                 Paths.get(root.toString(), "file1"),
                 Paths.get(root.toString(), "file2")
@@ -152,7 +152,7 @@ class MemoryImplTest {
             }
         }
 
-        DefaultApi impl = new MemoryImpl();
+        MergedApi impl = new MemoryImpl();
         assertEquals("idle", impl.getStatus().getState(), "Before scanning, the ScanBot should be idle");
 
         performScan(impl);
@@ -162,7 +162,7 @@ class MemoryImplTest {
     }
 
     @SuppressWarnings("BusyWait")
-    private static void performScan(DefaultApi impl) throws InterruptedException {
+    private static void performScan(MergedApi impl) throws InterruptedException {
         assertFalse(impl.startScan(".*").getRoots().isEmpty(), "At least 1 root should be scanned");
         final long maxTime = System.currentTimeMillis()+60000; // 1 minute is insanely overkill, but we err on the side of caution
         while (System.currentTimeMillis() < maxTime && !impl.getStatus().getState().equals("idle")) {

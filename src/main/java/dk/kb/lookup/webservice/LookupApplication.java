@@ -8,7 +8,7 @@ import javax.ws.rs.core.Application;
 
 import com.fasterxml.jackson.jaxrs.json.JacksonJsonProvider;
 import dk.kb.lookup.api.impl.MemoryImpl;
-import dk.kb.webservice.exception.ServiceExceptionMapper;
+import dk.kb.webservice.ServiceExceptionMapper;
 
 public class LookupApplication extends Application {
 

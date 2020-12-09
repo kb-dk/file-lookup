@@ -238,14 +238,20 @@
                     <generateModelDocumentation>true</generateModelDocumentation>
                     <generateApis>true</generateApis>
                     <output>${project.basedir}</output>
+                    <templateDirectory>src/main/templates/</templateDirectory>
 
                     <configOptions>
+                        <!--https://openapi-generator.tech/docs/generators/jaxrs-cxf-extended/-->
                         <!--<sourceFolder>generated-sources</sourceFolder>-->
                         <sourceFolder>target/generated-sources</sourceFolder>
                         <useSwaggerFeature>true</useSwaggerFeature>
                         <useSwaggerUI>true</useSwaggerUI>
                         <apiPackage>${project.package}.api</apiPackage>
                         <modelPackage>${project.package}.model</modelPackage>
+                        <dateLibrary>threetenbp</dateLibrary>
+                        <implFolder>src/main/java</implFolder>
+<!--                        <useGenericResponse>true</useGenericResponse>-->
+
                     </configOptions>
                 </configuration>
                 <executions>

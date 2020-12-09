@@ -10,38 +10,16 @@ info:
     name: "${license.name}"
     url: "${license.url}"
 servers:
-  - url: "/${project.artifactId}/"
+  - url: "/${project.artifactId}/api"
     description: "Current server"
 #tags:
 #  - name: test
 #    description: "Samples for template"
 paths:
-  /ping:
-    get:
-      summary: 'Ping the server to check if the server is reachable'
-      operationId: ping
-      responses:
-        '200':
-          description: 'OK'
-          content:
-            text/plain:
-              schema:
-                type: string
-        '406':
-          description: 'Not Acceptable'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: 'Internal Error'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
   /getEntryFromFilename:
     get:
+      tags:
+        - Lookup
       summary: 'Get the entry (path, filename and lastSeen) for a given filename'
       operationId: getEntryFromFilename
       parameters:
@@ -74,6 +52,8 @@ paths:
 
   /getEntriesFromFilenames:
     get:
+      tags:
+        - Lookup
       summary: 'Get the entries (path, filename and lastSeen) for multiple filenames'
       operationId: getEntriesFromFilenames
       parameters:
@@ -102,6 +82,8 @@ paths:
 
   /getEntries:
     get:
+      tags:
+        - Lookup
       summary: 'Get the entries (path, filename and lastSeen) based on a given regexp or start time.
                 Note that this is potentially a heavy request'
       operationId: getEntries
@@ -151,10 +133,38 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  # ------------------------------------------------------------------------------------------------
+
+  /ping:
+    get:
+      tags:
+        - Status
+      summary: 'Ping the server to check if the server is reachable'
+      operationId: ping
+      responses:
+        '200':
+          description: 'OK'
+          content:
+            text/plain:
+              schema:
+                type: string
+        '406':
+          description: 'Not Acceptable'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 'Internal Error'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /status:
     get:
-#      tags:
-#        - "test"
+      tags:
+        - Status
       summary: 'Get the status for the service'
       operationId: getStatus
       responses:
@@ -167,6 +177,8 @@ paths:
 
   /status/getRoots:
     get:
+      tags:
+        - Status
       summary: 'Get the file paths that are tracked'
       operationId: getRoots
       responses:
@@ -179,6 +191,8 @@ paths:
 
   /status/fileCount:
     get:
+      tags:
+        - Status
       summary: 'Get the number of files registered'
       operationId: getFilecount
       responses:
@@ -189,8 +203,12 @@ paths:
               schema:
                 type: integer
 
+  # ------------------------------------------------------------------------------------------------
+
   /control/startScan:
     get:
+      tags:
+        - Control
       summary: 'Start a scan of all or some of the roots. If a scan is already running a new one will not be started'
       operationId: startScan
       parameters:
@@ -213,6 +231,8 @@ paths:
 
   /control/addFiles:
     get:
+      tags:
+        - Control
       summary: 'Inform the service of an added files. If a file is already known, its timestamp is updated'
       operationId: addFiles
       parameters:
@@ -244,6 +264,8 @@ paths:
 
   /control/removeFiles:
     get:
+      tags:
+        - Control
       summary: 'Inform the service of removed files'
       operationId: removeFiles
       parameters:

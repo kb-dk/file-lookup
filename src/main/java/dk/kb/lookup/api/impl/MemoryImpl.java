@@ -2,14 +2,16 @@ package dk.kb.lookup.api.impl;
 
 import dk.kb.lookup.FileEntry;
 import dk.kb.lookup.ScanBot;
-import dk.kb.lookup.api.DefaultApi;
+import dk.kb.lookup.api.MergedApi;
 import dk.kb.lookup.config.LookupServiceConfig;
 import dk.kb.lookup.model.EntriesRequestDto;
 import dk.kb.lookup.model.EntryReplyDto;
 import dk.kb.lookup.model.RootsReplyDto;
 import dk.kb.lookup.model.StatusReplyDto;
+import dk.kb.webservice.exception.InternalServiceException;
 import dk.kb.webservice.exception.InvalidArgumentServiceException;
 import dk.kb.webservice.exception.NoContentServiceException;
+import dk.kb.webservice.exception.ServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,7 +30,7 @@ import java.util.stream.Collectors;
  * <p>This pom can be inherited by projects wishing to integrate to the SBForge development platform. 
  *
  */
-public class MemoryImpl implements DefaultApi {
+public class MemoryImpl implements MergedApi {
     private static final Logger log = LoggerFactory.getLogger(MemoryImpl.class);
 
     // Must be final as MemoryImpl are instantiated anew for each call
@@ -39,20 +41,31 @@ public class MemoryImpl implements DefaultApi {
     /**
      * Get the entries (path, filename and lastSeen) based on a given regexp or start time. Note that this is potentially a heavy request
      *
+     * @param entriesRequest:
+     *
+     * @param max: The maximum number of entries to return, -1 if there is no limit
+     *
+     * @return <ul>
+      *   <li>code = 200, message = "A list with the path, filename and lastSeen timestamps for the matches, sorted oldest to newest. The list can be empty", response = EntryReplyDto.class, responseContainer = "List"</li>
+      *   <li>code = 500, message = "Internal Error", response = ErrorDto.class</li>
+      *   </ul>
+      * @throws ServiceException when other http codes should be returned
+      *
+      * @implNote return will always produce a HTTP 200 code. Throw ServiceException if you need to return other codes
      */
     @Override
-    public List<EntryReplyDto> getEntries(EntriesRequestDto param, Integer max) {
+    public List<EntryReplyDto> getEntries(EntriesRequestDto entriesRequest, Integer max) {
         long since = 0;
-        if (param.getSinceEpochMS() != null) {
-            since = Math.max(since, param.getSinceEpochMS());
+        if (entriesRequest.getSinceEpochMS() != null) {
+            since = Math.max(since, entriesRequest.getSinceEpochMS());
         }
-        if (param.getSince() != null) {
-            since = Math.max(since,  toEpoch(param.getSince()));
+        if (entriesRequest.getSince() != null) {
+            since = Math.max(since,  toEpoch(entriesRequest.getSince()));
         }
         final long finalSince = since;
 
         final int limit = max == -1 ? Integer.MAX_VALUE : max;
-        Pattern pattern = param.getRegexp() == null ? null : Pattern.compile(param.getRegexp());
+        Pattern pattern = entriesRequest.getRegexp() == null ? null : Pattern.compile(entriesRequest.getRegexp());
 
         try {
             locks.readLock().lock();
@@ -63,6 +76,8 @@ public class MemoryImpl implements DefaultApi {
                     sorted(Comparator.comparingLong(e -> e.lastSeen)).
                     map(this::toReplyEntry).
                     collect(Collectors.toList());
+        } catch (Exception e) {
+            throw handleException(e);
         } finally {
             locks.readLock().unlock();
         }
@@ -81,6 +96,16 @@ public class MemoryImpl implements DefaultApi {
     /**
      * Get the entry (path, filename and lastSeen) for a given filename
      *
+     * @param filename: The filename to locate
+     *
+     * @return <ul>
+      *   <li>code = 200, message = "A JSON structure containing the path, filename and lastSeen timestamp for the given filename", response = EntryReplyDto.class</li>
+      *   <li>code = 204, message = "If an entry for the given filename could not be located", response = String.class</li>
+      *   <li>code = 500, message = "Internal Error", response = ErrorDto.class</li>
+      *   </ul>
+      * @throws ServiceException when other http codes should be returned
+      *
+      * @implNote return will always produce a HTTP 200 code. Throw ServiceException if you need to return other codes
      */
     @Override
     public EntryReplyDto getEntryFromFilename(String filename) {
@@ -92,6 +117,8 @@ public class MemoryImpl implements DefaultApi {
                 return toReplyEntry(entry);
             }
             throw new NoContentServiceException("Unable to locate an entry for '" + filename + "'");
+        } catch (Exception e) {
+            throw handleException(e);
         } finally {
             locks.readLock().unlock();
         }
@@ -100,6 +127,15 @@ public class MemoryImpl implements DefaultApi {
     /**
      * Get the entries (path, filename and lastSeen) for multiple filenames
      *
+     * @param filenames: The filenames to locate
+     *
+     * @return <ul>
+      *   <li>code = 200, message = "A list with the path, filename and lastSeen timestamps for the filenames. The list can be empty", response = EntryReplyDto.class, responseContainer = "List"</li>
+      *   <li>code = 500, message = "Internal Error", response = ErrorDto.class</li>
+      *   </ul>
+      * @throws ServiceException when other http codes should be returned
+      *
+      * @implNote return will always produce a HTTP 200 code. Throw ServiceException if you need to return other codes
      */
     @Override
     public List<EntryReplyDto> getEntriesFromFilenames(List<String> filenames) {
@@ -110,6 +146,8 @@ public class MemoryImpl implements DefaultApi {
                     filter(Objects::nonNull).
                     map(this::toReplyEntry).
                     collect(Collectors.toList());
+        } catch (Exception e) {
+            throw handleException(e);
         } finally {
             locks.readLock().unlock();
         }
@@ -118,6 +156,12 @@ public class MemoryImpl implements DefaultApi {
     /**
      * Get the number of files registered
      *
+     * @return <ul>
+      *   <li>code = 200, message = "An integer stating the number of registered files", response = Integer.class</li>
+      *   </ul>
+      * @throws ServiceException when other http codes should be returned
+      *
+      * @implNote return will always produce a HTTP 200 code. Throw ServiceException if you need to return other codes
      */
     @Override
     public Integer getFilecount() {
@@ -128,6 +172,12 @@ public class MemoryImpl implements DefaultApi {
     /**
      * Get the file paths that are tracked
      *
+     * @return <ul>
+      *   <li>code = 200, message = "The roots (file paths) that are tracked by the service", response = RootsReplyDto.class</li>
+      *   </ul>
+      * @throws ServiceException when other http codes should be returned
+      *
+      * @implNote return will always produce a HTTP 200 code. Throw ServiceException if you need to return other codes
      */
     @Override
     public RootsReplyDto getRoots() {
@@ -139,6 +189,12 @@ public class MemoryImpl implements DefaultApi {
     /**
      * Get the status for the service
      *
+     * @return <ul>
+      *   <li>code = 200, message = "A structure containing the status of the service (number of files etc.)", response = StatusReplyDto.class</li>
+      *   </ul>
+      * @throws ServiceException when other http codes should be returned
+      *
+      * @implNote return will always produce a HTTP 200 code. Throw ServiceException if you need to return other codes
      */
     @Override
     public StatusReplyDto getStatus() {
@@ -156,6 +212,14 @@ public class MemoryImpl implements DefaultApi {
     /**
      * Ping the server to check if the server is reachable
      *
+     * @return <ul>
+      *   <li>code = 200, message = "OK", response = String.class</li>
+      *   <li>code = 406, message = "Not Acceptable", response = ErrorDto.class</li>
+      *   <li>code = 500, message = "Internal Error", response = ErrorDto.class</li>
+      *   </ul>
+      * @throws ServiceException when other http codes should be returned
+      *
+      * @implNote return will always produce a HTTP 200 code. Throw ServiceException if you need to return other codes
      */
     @Override
     public String ping() {
@@ -165,6 +229,14 @@ public class MemoryImpl implements DefaultApi {
     /**
      * Start a scan of all or some of the roots. If a scan is already running a new one will not be started
      *
+     * @param rootPattern: A pattern for the roots to scan
+     *
+     * @return <ul>
+      *   <li>code = 200, message = "A list of the roots for the started scan or the empty list if the pattern did not match any roots or a scan was already running", response = RootsReplyDto.class</li>
+      *   </ul>
+      * @throws ServiceException when other http codes should be returned
+      *
+      * @implNote return will always produce a HTTP 200 code. Throw ServiceException if you need to return other codes
      */
     @Override
     public RootsReplyDto startScan(String rootPattern) {
@@ -192,6 +264,16 @@ public class MemoryImpl implements DefaultApi {
     /**
      * Inform the service of an added files. If a file is already known, its timestamp is updated
      *
+     * @param files: Paths and filenames of the files
+     *
+     * @param validate: Whether or not the files existence should be validated before adding
+     *
+     * @return <ul>
+      *   <li>code = 200, message = "An list of the added files. This will always be equal to the input if validate is false", response = String.class, responseContainer = "List"</li>
+      *   </ul>
+      * @throws ServiceException when other http codes should be returned
+      *
+      * @implNote return will always produce a HTTP 200 code. Throw ServiceException if you need to return other codes
      */
     @Override
     public List<String> addFiles(List<String> files, Boolean validate) {
@@ -211,6 +293,8 @@ public class MemoryImpl implements DefaultApi {
         try {
             locks.writeLock().lock();
             keep.forEach(entry -> filenameMap.put(entry.filename, entry));
+        } catch (Exception e) {
+            throw handleException(e);
         } finally {
             locks.writeLock().unlock();
         }
@@ -221,6 +305,16 @@ public class MemoryImpl implements DefaultApi {
     /**
      * Inform the service of removed files
      *
+     * @param files: Paths and filenames of the files
+     *
+     * @param validate: Whether or not the files existence should be validated before removing. If it still exists it will not be removed
+     *
+     * @return <ul>
+      *   <li>code = 200, message = "An list of the removed files. This will always be equal to the input if validate is false", response = String.class, responseContainer = "List"</li>
+      *   </ul>
+      * @throws ServiceException when other http codes should be returned
+      *
+      * @implNote return will always produce a HTTP 200 code. Throw ServiceException if you need to return other codes
      */
     @Override
     public List<String> removeFiles(List<String> files, Boolean validate) {
@@ -240,6 +334,8 @@ public class MemoryImpl implements DefaultApi {
         try {
             locks.writeLock().lock();
             remove.forEach(entry -> filenameMap.remove(entry.filename));
+        } catch (Exception e) {
+            throw handleException(e);
         } finally {
             locks.writeLock().unlock();
         }
@@ -284,6 +380,9 @@ public class MemoryImpl implements DefaultApi {
                         }
                     }
                 }
+            } catch (Exception e) {
+                log.warn(String.format(Locale.ENGLISH, "Unhandled Exception during purge with roots=%s, minTime=%d",
+                                       roots, minTime), e);
             } finally {
                 locks.writeLock().unlock();
             }
@@ -297,6 +396,8 @@ public class MemoryImpl implements DefaultApi {
         try {
             locks.writeLock().lock();
             folder.forEach(entry -> filenameMap.put(entry.filename, entry));
+        } catch (Exception e) {
+            throw handleException(e);
         } finally {
             locks.writeLock().unlock();
         }
@@ -312,4 +413,18 @@ public class MemoryImpl implements DefaultApi {
         return item;
     }
 
+    /**
+    * This method simply converts any Exception into a Service exception
+    * @param e: Any kind of exception
+    * @return A ServiceException
+    * @see dk.kb.webservice.ServiceExceptionMapper
+    */
+    private ServiceException handleException(Exception e) {
+        if (e instanceof ServiceException) {
+            return (ServiceException) e; // Do nothing - this is a declared ServiceException from within module.
+        } else {// Unforseen exception (should not happen). Wrap in internal service exception
+            log.error("ServiceException(HTTP 500):", e); //You probably want to log this.
+            return new InternalServiceException(e.getMessage());
+        }
+    }
 }
