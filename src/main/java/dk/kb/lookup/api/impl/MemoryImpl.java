@@ -3,7 +3,7 @@ package dk.kb.lookup.api.impl;
 import dk.kb.lookup.FileEntry;
 import dk.kb.lookup.ScanBot;
 import dk.kb.lookup.api.MergedApi;
-import dk.kb.lookup.config.LookupServiceConfig;
+import dk.kb.lookup.config.ServiceConfig;
 import dk.kb.lookup.model.EntryReplyDto;
 import dk.kb.lookup.model.RootsReplyDto;
 import dk.kb.lookup.model.StatusReplyDto;
@@ -33,7 +33,7 @@ public class MemoryImpl implements MergedApi {
     private static final Logger log = LoggerFactory.getLogger(MemoryImpl.class);
 
     // Must be final as MemoryImpl are instantiated anew for each call
-    private final static List<String> roots = LookupServiceConfig.getConfig().getList(".config.roots");
+    private final static List<String> roots = ServiceConfig.getConfig().getList(".config.roots");
     private final static Map<String, FileEntry> filenameMap = new HashMap<>();
     private final static ReadWriteLock locks = new ReentrantReadWriteLock();
 

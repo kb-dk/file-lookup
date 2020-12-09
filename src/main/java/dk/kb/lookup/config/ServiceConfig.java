@@ -9,7 +9,7 @@ import dk.kb.util.yaml.YAML;
  * Sample configuration class using the Singleton pattern.
  * This should work well for most projects with non-dynamic properties.
  */
-public class LookupServiceConfig {
+public class ServiceConfig {
 
     /**
      * Besides parsing of YAML files using SnakeYAML, the YAML helper class provides convenience

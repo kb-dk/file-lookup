@@ -1,7 +1,7 @@
 package dk.kb.lookup.api.impl;
 
 import dk.kb.lookup.api.MergedApi;
-import dk.kb.lookup.config.LookupServiceConfig;
+import dk.kb.lookup.config.ServiceConfig;
 import dk.kb.lookup.model.EntryReplyDto;
 import dk.kb.webservice.exception.NoContentServiceException;
 import org.junit.jupiter.api.BeforeAll;
@@ -43,7 +43,7 @@ class MemoryImplTest {
 
     @BeforeAll
     static void useTestConfig() throws IOException, InterruptedException {
-        LookupServiceConfig.initialize("file-lookup-test.yaml");
+        ServiceConfig.initialize("file-lookup-test.yaml");
         impl = setupTestImpl(root);
     }
 

@@ -7,7 +7,7 @@ import javax.naming.NamingException;
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
 
-import dk.kb.lookup.config.LookupServiceConfig;
+import dk.kb.lookup.config.ServiceConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,7 +33,7 @@ public class ContextListener implements ServletContextListener {
             log.info("Initializing service v{}", getClass().getPackage().getImplementationVersion());
             InitialContext ctx = new InitialContext();
             String configFile = (String) ctx.lookup("java:/comp/env/application-config");
-            LookupServiceConfig.initialize(configFile);
+            ServiceConfig.initialize(configFile);
         } catch (NamingException e) {
             throw new RuntimeException("Failed to lookup settings", e);
         } catch (IOException e) {
