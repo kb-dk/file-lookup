@@ -22,19 +22,19 @@ paths:
       operationId: ping
       responses:
         '200':
-          description: OK
+          description: 'OK'
           content:
             text/plain:
               schema:
                 type: string
         '406':
-          description: Not Acceptable
+          description: 'Not Acceptable'
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '500':
-          description: Internal Error
+          description: 'Internal Error'
           content:
             application/json:
               schema:
@@ -47,46 +47,90 @@ paths:
       parameters:
         - name: filename
           in: query
-          description: The filename to locate
+          description: 'The filename to locate'
           required: true
           schema:
             type: string
             example: 'broad_harvest_2020-12-02T16:00:00Z.warc.gz'
       responses:
         '200':
-          description: A JSON structure containing the path, filename and lastSeen timestamp for the given filename
+          description: 'A JSON structure containing the path, filename and lastSeen timestamp for the given filename'
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/EntryReply'
         '204':
-          description: If an entry for the given filename could not be located
+          description: 'If an entry for the given filename could not be located'
           content:
             text/plain:
               schema:
                 type: string
         '500':
-          description: Internal Error
+          description: 'Internal Error'
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /getEntriesFromRegexp:
+  /getEntriesFromFilenames:
     get:
-      summary: 'Get the entries (path, filename and lastSeen) for a given regexp'
-      operationId: getEntriesFromRegexp
+      summary: 'Get the entries (path, filename and lastSeen) for multiple filenames'
+      operationId: getEntriesFromFilenames
       parameters:
-        - name: regexp
+        - name: filename
           in: query
-          description: The regexp which will be matched against the full path + filename
+          description: 'The filenames to locate'
           required: true
           schema:
-            type: string
-            example: '.*/harvest_246/.*2020-12-02.*\\.warc.*'
+            type: array
+            items:
+              type: string
+            example: 'broad_harvest_2020-12-02T16:00:00Z.warc.gz'
+      responses:
+        '200':
+          description: 'A list with the path, filename and lastSeen timestamps for the filenames. The list can be empty'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntriesReply'
+        '500':
+          description: 'Internal Error'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /getEntries:
+    get:
+      summary: 'Get the entries (path, filename and lastSeen) based on a given regexp or start time.
+                Note that this is potentially a heavy request'
+      operationId: getEntries
+      parameters:
+        - name: entriesRequest
+          in: query
+          required: true
+          schema:
+            type: object
+            properties:
+              regexp:
+                description: 'The regexp which will be matched against the full path + filename'
+                type: string
+                example: '.*/harvest_246/.*2020-12-02.*\\.warc.*'
+              since:
+                description: 'Only entries newer than this will be returned'
+                type: string
+                example: '2020-12-04T15:01:13Z'
+              sinceEpochMS:
+                description: 'Only entries newer than this will be returned'
+                type: integer
+                format: int64
+                example: 1607090473802
+            additionalProperties: false
+            minProperties: 1
+
         - name: max
           in: query
-          description: The maximum number of entries to return, -1 if there is no limit
+          description: 'The maximum number of entries to return, -1 if there is no limit'
           required: false
           schema:
             type: integer
@@ -94,13 +138,14 @@ paths:
             default: 1000
       responses:
         '200':
-          description: A list with the path, filename and lastSeen timestamps for the matches. The list can be empty
+          description: 'A list with the path, filename and lastSeen timestamps for the matches, sorted oldest to newest.
+                        The list can be empty'
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/EntriesReply'
         '500':
-          description: Internal Error
+          description: 'Internal Error'
           content:
             application/json:
               schema:
@@ -114,7 +159,7 @@ paths:
       operationId: getStatus
       responses:
         '200':
-          description: A JSON structure containing the status of the service (number of files etc.)
+          description: 'A structure containing the status of the service (number of files etc.)'
           content:
             application/json:
               schema:
@@ -126,7 +171,7 @@ paths:
       operationId: getRoots
       responses:
         '200':
-          description: A JSON structure containing the roots (file paths) that are tracked by the service
+          description: 'The roots (file paths) that are tracked by the service'
           content:
             application/json:
               schema:
@@ -138,7 +183,7 @@ paths:
       operationId: getFilecount
       responses:
         '200':
-          description: An integer stating the number of registered files
+          description: 'An integer stating the number of registered files'
           content:
             text/plain:
               schema:
@@ -151,7 +196,7 @@ paths:
       parameters:
         - name: rootPattern
           in: query
-          description: A pattern for the roots to scan
+          description: 'A pattern for the roots to scan'
           required: false
           schema:
             type: string
@@ -165,12 +210,68 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RootsReply'
-        '500':
-          description: Internal Error
+
+  /control/addFiles:
+    get:
+      summary: 'Inform the service of an added files. If a file is already known, its timestamp is updated'
+      operationId: addFiles
+      parameters:
+        - name: file
+          in: query
+          description: 'Paths and filenames of the files'
+          required: true
+          schema:
+            type: array
+            items:
+              type: string
+            example: ['/mnt/archive/warcs/0003/02/harvest_2020-12-04T16:00.warc.gz', '/mnt/archive/warcs/0003/02/harvest_meta_2020-12-04T16:00.warc.gz']
+        - name: validate
+          in: query
+          description: 'Whether or not the files existence should be validated before adding'
+          required: false
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: 'An list of the added files. This will always be equal to the input if validate is false'
           content:
-            application/json:
+            text/plain:
               schema:
-                $ref: '#/components/schemas/Error'
+                type: array
+                items:
+                  type: string
+
+  /control/removeFiles:
+    get:
+      summary: 'Inform the service of removed files'
+      operationId: removeFiles
+      parameters:
+        - name: file
+          in: query
+          description: 'Paths and filenames of the files'
+          required: true
+          schema:
+            type: array
+            items:
+              type: string
+            example: ['/mnt/archive/warcs/0003/02/harvest_2020-12-04T16:00.warc.gz', '/mnt/archive/warcs/0003/02/harvest_meta_2020-12-04T16:00.warc.gz']
+        - name: validate
+          in: query
+          description: 'Whether or not the files existence should be validated before removing. If it still exists it will not be removed'
+          required: false
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: 'An list of the removed files. This will always be equal to the input if validate is false'
+          content:
+            text/plain:
+              schema:
+                type: array
+                items:
+                  type: string
 
 components:
   schemas:
@@ -182,7 +283,22 @@ components:
       properties:
         general:
           type: string
-          description: Human readable status
+          description: 'Human readable status'
+        roots:
+          type: array
+          items:
+            type: string
+          description: 'List of tracked roots (file paths)'
+        files:
+          type: integer
+          description: 'The number of files known by the service'
+        state:
+          type: string
+          enum: [idle, scanning]
+          description: 'Whether the service is actively scanning for changes or if it is idle'
+        currentScanFolder:
+          type: string
+          description: 'If the service is actively scanning, whis is the folder being scanned'
 
     RootsReply:
       type: object
@@ -193,7 +309,7 @@ components:
           type: array
           items:
             type: string
-          description: List of roots (file paths)
+          description: 'List of tracked roots (file paths)'
 
     EntryReply:
       type: object
@@ -203,14 +319,19 @@ components:
       properties:
         path:
           type: string
-          description: The path for the file
+          description: 'The path for the file'
         filename:
           type: string
-          description: The filename for the file. This will not be present if there is only a path
+          description: 'The filename for the file. This will not be present if there is only a path'
         lastSeen:
           type: string
-          description: When the entry was last seen, in the subset YYYY-MM-DDThh:mm:ssZ of ISO-8601
-          example: 2020-12-02T16:04:00Z
+          description: 'When the entry was last seen, in the subset YYYY-MM-DDThh:mm:ssZ of ISO-8601'
+          example: '2020-12-04T15:01:13Z'
+        lastSeenEpochMS:
+          type: integer
+          format: int64
+          description: 'When the entry was last seen, in milliseconds since epoch'
+          example: 1607090473802
 
     EntriesReply:
       type: array

@@ -4,14 +4,21 @@ import dk.kb.lookup.FileEntry;
 import dk.kb.lookup.ScanBot;
 import dk.kb.lookup.api.DefaultApi;
 import dk.kb.lookup.config.LookupServiceConfig;
+import dk.kb.lookup.model.EntriesRequestDto;
 import dk.kb.lookup.model.EntryReplyDto;
 import dk.kb.lookup.model.RootsReplyDto;
 import dk.kb.lookup.model.StatusReplyDto;
+import dk.kb.webservice.exception.InvalidArgumentServiceException;
 import dk.kb.webservice.exception.NoContentServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -24,24 +31,52 @@ import java.util.stream.Collectors;
 public class MemoryImpl implements DefaultApi {
     private static final Logger log = LoggerFactory.getLogger(MemoryImpl.class);
 
-    private static List<String> roots = LookupServiceConfig.getConfig().getList(".config.roots");
+    // Must be final as MemoryImpl are instantiated anew for each call
+    private final static List<String> roots = LookupServiceConfig.getConfig().getList(".config.roots");
     private final static Map<String, FileEntry> filenameMap = new HashMap<>();
+    private final static ReadWriteLock locks = new ReentrantReadWriteLock();
 
     /**
-     * Get the entries (path, filename and lastSeen) for a given regexp
+     * Get the entries (path, filename and lastSeen) based on a given regexp or start time. Note that this is potentially a heavy request
      *
      */
     @Override
-    public List<EntryReplyDto> getEntriesFromRegexp(String regexp, Integer max) {
-        Pattern pattern = Pattern.compile(regexp);
-        final int limit = max == -1 ? Integer.MAX_VALUE : max;
+    public List<EntryReplyDto> getEntries(EntriesRequestDto param, Integer max) {
+        long since = 0;
+        if (param.getSinceEpochMS() != null) {
+            since = Math.max(since, param.getSinceEpochMS());
+        }
+        if (param.getSince() != null) {
+            since = Math.max(since,  toEpoch(param.getSince()));
+        }
+        final long finalSince = since;
 
-        return filenameMap.values().stream().
-                filter(entry -> pattern.matcher(entry.getFullpath()).matches()).
-                limit(limit).
-                map(this::toReplyEntry).
-                collect(Collectors.toList());
+        final int limit = max == -1 ? Integer.MAX_VALUE : max;
+        Pattern pattern = param.getRegexp() == null ? null : Pattern.compile(param.getRegexp());
+
+        try {
+            locks.readLock().lock();
+            return filenameMap.values().stream().
+                    filter(entry -> entry.lastSeen >= finalSince).
+                    filter(entry -> pattern == null || pattern.matcher(entry.getFullpath()).matches()).
+                    limit(limit).
+                    sorted(Comparator.comparingLong(e -> e.lastSeen)).
+                    map(this::toReplyEntry).
+                    collect(Collectors.toList());
+        } finally {
+            locks.readLock().unlock();
+        }
     }
+    public synchronized long toEpoch(String iso) {
+        try {
+            return iso8601.parse(iso).getTime();
+        } catch (ParseException e) {
+            throw new InvalidArgumentServiceException(
+                    "The timestamp '" + iso + "' could not be parsed using pattern '" + iso8601.toPattern() + "'", e);
+        }
+    }
+    final static SimpleDateFormat iso8601 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.ENGLISH);
+
 
     /**
      * Get the entry (path, filename and lastSeen) for a given filename
@@ -49,11 +84,35 @@ public class MemoryImpl implements DefaultApi {
      */
     @Override
     public EntryReplyDto getEntryFromFilename(String filename) {
-        FileEntry entry = filenameMap.get(filename);
-        if (entry != null) {
-            return toReplyEntry(entry);
+        FileEntry entry;
+        try {
+            locks.readLock().lock();
+            entry = filenameMap.get(filename);
+            if (entry != null) {
+                return toReplyEntry(entry);
+            }
+            throw new NoContentServiceException("Unable to locate an entry for '" + filename + "'");
+        } finally {
+            locks.readLock().unlock();
         }
-        throw new NoContentServiceException("Unable to locate an entry for '" + filename + "'");
+    }
+
+    /**
+     * Get the entries (path, filename and lastSeen) for multiple filenames
+     *
+     */
+    @Override
+    public List<EntryReplyDto> getEntriesFromFilenames(List<String> filenames) {
+        try {
+            locks.readLock().lock();
+            return filenames.stream().
+                    map(filenameMap::get).
+                    filter(Objects::nonNull).
+                    map(this::toReplyEntry).
+                    collect(Collectors.toList());
+        } finally {
+            locks.readLock().unlock();
+        }
     }
 
     /**
@@ -85,6 +144,12 @@ public class MemoryImpl implements DefaultApi {
     public StatusReplyDto getStatus() {
         StatusReplyDto response = new StatusReplyDto();
         response.setGeneral(String.format(Locale.ENGLISH, "%d roots, %d files", roots.size(), filenameMap.size()));
+        response.setRoots(roots);
+        response.setFiles(filenameMap.size());
+        response.setState(ScanBot.instance().getState() == ScanBot.STATE.idle ?
+                                  StatusReplyDto.StateEnum.IDLE :
+                                  StatusReplyDto.StateEnum.SCANNING);
+        response.setCurrentScanFolder(ScanBot.instance().getActivePath());
         return response;
     }
 
@@ -103,15 +168,17 @@ public class MemoryImpl implements DefaultApi {
      */
     @Override
     public RootsReplyDto startScan(String rootPattern) {
+        log.debug("startScan(rootPattern=" + rootPattern + ") called");
         Pattern pattern = Pattern.compile(rootPattern);
         List<String> scanRoots = roots.stream().
                 filter(root -> pattern.matcher(root).matches()).
                 collect(Collectors.toList());
 
-        // TODO: Better return message
+        final long startTime = System.currentTimeMillis();
         if (scanRoots.isEmpty() ||
             !ScanBot.instance().isReady() ||
-            !ScanBot.instance().startScan(scanRoots, this::acceptFolder)) {
+            !ScanBot.instance().startScan(scanRoots, this::acceptFolder, new Purger(scanRoots, startTime))) {
+            // TODO: Better return message
             RootsReplyDto response = new RootsReplyDto();
             response.setRoots(Collections.emptyList());
             return response;
@@ -122,21 +189,127 @@ public class MemoryImpl implements DefaultApi {
         return response;
     }
 
-    private void acceptFolder(ScanBot.Folder folder) {
+    /**
+     * Inform the service of an added files. If a file is already known, its timestamp is updated
+     *
+     */
+    @Override
+    public List<String> addFiles(List<String> files, Boolean validate) {
+        log.debug("addFiles(#" + files.size() + " files, validate=" + validate + ") called");
+        List<String> feedback = new ArrayList<>(files.size());
+        List<FileEntry> keep = new ArrayList<>(files.size());
+        for (String fileStr: files) {
+            File file = new File(fileStr);
+            if (validate && !file.isFile()) {
+                continue;
+            }
+            feedback.add(fileStr);
+            keep.add(new FileEntry(file.getPath(), file.getName()));
+        }
 
-        log.debug("acceptFolder(" + folder + ") called");
-        // TODO: Delete all folder content from MemoryImpl before adding new
-        folder.forEach(entry -> filenameMap.put(entry.filename, entry));
-        log.debug("Filecount after accept=" + filenameMap.size());
+        log.debug("addFiles adding " + keep.size() + "/" + files.size() + " files");
+        try {
+            locks.writeLock().lock();
+            keep.forEach(entry -> filenameMap.put(entry.filename, entry));
+        } finally {
+            locks.writeLock().unlock();
+        }
+
+        return feedback;
+    }
+
+    /**
+     * Inform the service of removed files
+     *
+     */
+    @Override
+    public List<String> removeFiles(List<String> files, Boolean validate) {
+        log.debug("removeFiles(#" + files.size() + " files, validate=" + validate + ") called");
+        List<String> feedback = new ArrayList<>(files.size());
+        List<FileEntry> remove = new ArrayList<>(files.size());
+        for (String fileStr: files) {
+            File file = new File(fileStr);
+            if (validate && file.isFile()) {
+                continue;
+            }
+            feedback.add(fileStr);
+            remove.add(new FileEntry(file.getPath(), file.getName()));
+        }
+
+        log.debug("removeFiles removing " + remove.size() + "/" + files.size() + " files");
+        try {
+            locks.writeLock().lock();
+            remove.forEach(entry -> filenameMap.remove(entry.filename));
+        } finally {
+            locks.writeLock().unlock();
+        }
+
+        return feedback;
     }
 
     /* ----------------------------------------------------------------------------------- */
+
+
+    /**
+     * Removes entries under the given roots that are older than minTime,
+     */
+    private static class Purger implements Runnable {
+        final List<String> roots;
+        final long minTime;
+
+        /**
+         * @param roots the roots to consider when removing entries.
+         * @param minTime the minimum time for an entry under the roots to be preserved.
+         */
+        public Purger(List<String> roots, long minTime) {
+            this.roots = roots;
+            this.minTime = minTime;
+        }
+
+        @Override
+        public void run() {
+            long purgeCount = 0;
+            try {
+                locks.writeLock().lock();
+                Iterator<Map.Entry<String, FileEntry>> entries = filenameMap.entrySet().iterator();
+                while (entries.hasNext()) {
+                    FileEntry entry = entries.next().getValue();
+                    if (entry.lastSeen < minTime) { // Old entry. Check if it was under one of the scanned roots
+                        for (String root : roots) {
+                            if (entry.path.startsWith(root)) { // Old and under one of the roots: Purge it
+                                entries.remove();
+                                purgeCount++;
+                                break;
+                            }
+                        }
+                    }
+                }
+            } finally {
+                locks.writeLock().unlock();
+            }
+            log.debug("Purged " + purgeCount + " entries for deleted files for roots '" + roots);
+        }
+    }
+
+
+    private void acceptFolder(ScanBot.Folder folder) {
+        log.debug("acceptFolder(" + folder + ") called");
+        try {
+            locks.writeLock().lock();
+            folder.forEach(entry -> filenameMap.put(entry.filename, entry));
+        } finally {
+            locks.writeLock().unlock();
+        }
+        log.debug("File count after accept=" + filenameMap.size());
+    }
 
     private EntryReplyDto toReplyEntry(FileEntry fileEntry) {
         EntryReplyDto item = new EntryReplyDto();
         item.setPath(fileEntry.path);
         item.setFilename(fileEntry.filename);
+        item.setLastSeenEpochMS(fileEntry.lastSeen);
         item.setLastSeen(fileEntry.getLastSeenAsISO8601());
         return item;
     }
+
 }

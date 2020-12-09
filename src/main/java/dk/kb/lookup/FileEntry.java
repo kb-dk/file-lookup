@@ -22,7 +22,7 @@ import java.util.Locale;
  * Representation of an entry in {@link Storage}.
  */
 public class FileEntry {
-    final static SimpleDateFormat iso8601 = new SimpleDateFormat("YYYY-MM-DD'T'HH:mm:ss'Z'", Locale.ENGLISH);
+    final static SimpleDateFormat iso8601 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.ENGLISH);
 
     /**
      * @param path path to a file, without the filename part. Must not be null.

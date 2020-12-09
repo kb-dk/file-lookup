@@ -1,0 +1,6 @@
+config:
+  # The roots to track. It is advisable to use absolute paths
+  roots:
+    - '/tmp/file-lookup'
+  # A scanInterval of -1 disables automatic scanning
+  scanIntervalSeconds: 1
