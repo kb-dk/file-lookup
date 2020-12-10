@@ -4,6 +4,8 @@ import dk.kb.lookup.api.MergedApi;
 import dk.kb.lookup.config.ServiceConfig;
 import dk.kb.lookup.model.EntryReplyDto;
 import dk.kb.webservice.exception.NoContentServiceException;
+import dk.kb.webservice.exception.StreamingServiceException;
+import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -11,6 +13,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -93,18 +97,31 @@ class MemoryImplTest {
 
     @Test
     void testRegexpLookup() {
-        assertEquals(1, impl.getEntries(".*1", null, null, 100).size(), "The expected number of files should be located");
+        assertEquals(1, impl.getEntries(".*1", null, null, 100, false).size(),
+                     "The expected number of files should be located");
+    }
+
+    @Test
+    void testRegexpLookupStream() throws IOException {
+        // max = -1 triggers streaming
+        try {
+            impl.getEntries(".*1", null, null, -1, false);
+        } catch (StreamingServiceException e) {
+            InputStream json = (InputStream)e.getEntity();
+            List<String> jsonLines = IOUtils.readLines(json, StandardCharsets.UTF_8);
+            assertEquals(3, jsonLines.size(), "#entries + 2 lines should be returned");
+        }
     }
 
     @Test
     void testTimeMSLookup()  {
         // Get the timestamp for an entry and the total entry count
-        List<EntryReplyDto> all = impl.getEntries(".*", null, null, Integer.MAX_VALUE);
+        List<EntryReplyDto> all = impl.getEntries(".*", null, null, 1000, true);
         assertFalse(all.isEmpty(), "some files should be located");
         long firstTime = all.get(0).getLastSeenEpochMS();
 
         // Try requesting a bit later (1 ms later than the first)
-        List<EntryReplyDto> oneMsLater = impl.getEntries(null, null, firstTime+1, Integer.MAX_VALUE);
+        List<EntryReplyDto> oneMsLater = impl.getEntries(null, null, firstTime+1, 1000, true);
         assertNotEquals(oneMsLater.size(), all.size(),
                         "Requesting 1 ms later than first entry should result in another number of entries returned");
     }
@@ -112,14 +129,14 @@ class MemoryImplTest {
     @Test
     void testTimeISOLookup() throws ParseException {
         // Get the timestamp for an entry and the total entry count
-        List<EntryReplyDto> all = impl.getEntries(".*", null, null, Integer.MAX_VALUE);
+        List<EntryReplyDto> all = impl.getEntries(".*", null, null, 1000, true);
         assertFalse(all.isEmpty(), "some files should be located");
         String firstISO = all.get(0).getLastSeen();
         long firstTime = MemoryImpl.iso8601.parse(firstISO).getTime();
         
         // Try requesting a bit later (1 s as ISO-time only goes down to 1 second granularity in this API)
         String since = MemoryImpl.iso8601.format(new Date(firstTime+1000)); // 1 s later than the first
-        List<EntryReplyDto> oneMsLater = impl.getEntries(".*", since, null, Integer.MAX_VALUE);
+        List<EntryReplyDto> oneMsLater = impl.getEntries(".*", since, null, 1000, true);
         assertNotEquals(oneMsLater.size(), all.size(),
                         "Requesting 1 second later than first entry should result in another number of entries returned");
     }

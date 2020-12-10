@@ -1,5 +1,6 @@
 package dk.kb.lookup.api.impl;
 
+import dk.kb.lookup.CallbackInputStream;
 import dk.kb.lookup.FileEntry;
 import dk.kb.lookup.ScanBot;
 import dk.kb.lookup.api.MergedApi;
@@ -11,6 +12,7 @@ import dk.kb.webservice.exception.InternalServiceException;
 import dk.kb.webservice.exception.InvalidArgumentServiceException;
 import dk.kb.webservice.exception.NoContentServiceException;
 import dk.kb.webservice.exception.ServiceException;
+import dk.kb.webservice.exception.StreamingServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,10 +20,12 @@ import java.io.File;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * file-lookup
@@ -31,6 +35,9 @@ import java.util.stream.Collectors;
  */
 public class MemoryImpl implements MergedApi {
     private static final Logger log = LoggerFactory.getLogger(MemoryImpl.class);
+
+    public static final int REPLY_STREAM_ACTIVATION = 1000; // When more than this is requested, streaming is used
+    public static final int REPLY_SORT_LIMIT = 100_000; // Only accept sort requests up to this size
 
     // Must be final as MemoryImpl are instantiated anew for each call
     private final static List<String> roots = ServiceConfig.getConfig().getList(".lookup.roots");
@@ -48,6 +55,8 @@ public class MemoryImpl implements MergedApi {
      *
      * @param max: The maximum number of entries to return, -1 if there is no limit
      *
+     * @param ordered: If true, the entries are returned ordered by their timestamp. For large result sets this can have a negative impact on performance
+     *
      * @return <ul>
       *   <li>code = 200, message = "A list with the path, filename and lastSeen timestamps for the matches, sorted oldest to newest. The list can be empty", response = EntryReplyDto.class, responseContainer = "List"</li>
       *   <li>code = 500, message = "Internal Error", response = ErrorDto.class</li>
@@ -57,7 +66,7 @@ public class MemoryImpl implements MergedApi {
       * @implNote return will always produce a HTTP 200 code. Throw ServiceException if you need to return other codes
      */
     @Override
-    public List<EntryReplyDto> getEntries(String regexp, String since, Long sinceEpochMS, Integer max) throws ServiceException {
+    public List<EntryReplyDto> getEntries(String regexp, String since, Long sinceEpochMS, Integer max, Boolean ordered) throws ServiceException {
         long sinceEpoch = sinceEpochMS == null ? 0 : sinceEpochMS;
         if (since != null) {
             sinceEpoch = Math.max(sinceEpoch, toEpoch(since));
@@ -66,22 +75,69 @@ public class MemoryImpl implements MergedApi {
 
         final int limit = max == -1 ? Integer.MAX_VALUE : max;
         Pattern pattern = regexp == null ? null : Pattern.compile(regexp);
+        ordered = ordered != null && ordered;
+
+        if (ordered && limit > REPLY_SORT_LIMIT) {
+            throw new InvalidArgumentServiceException(
+                    "A sorted response was requested but max=" + max + " exceeds the sort limit of " + REPLY_SORT_LIMIT);
+        }
 
         try {
             locks.readLock().lock();
-            return filenameMap.values().stream().
+
+            // Create a stream with the entries
+            Stream<FileEntry> entries = filenameMap.values().stream().
                     filter(entry -> entry.lastSeen >= finalSince).
                     filter(entry -> pattern == null || pattern.matcher(entry.getFullpath()).matches()).
-                    limit(limit).
-                    sorted(Comparator.comparingLong(e -> e.lastSeen)).
-                    map(this::toReplyEntry).
-                    collect(Collectors.toList());
+                    limit(limit);
+            entries = ordered ? entries.sorted(Comparator.comparingLong(e -> e.lastSeen)) : entries;
+
+            // If the max is low enough, collect the results immediately and return them
+            if (limit > -1 && limit <= REPLY_STREAM_ACTIVATION) { // Return directly
+                return entries.
+                        map(this::toReplyEntry).
+                        collect(Collectors.toList());
+            }
+
+            // It is potentially a very large result, so stream it
+            throw streamReplies(entries);
         } catch (Exception e) {
             throw handleException(e);
         } finally {
             locks.readLock().unlock();
         }
     }
+
+    /**
+     * Creates an "Exception" that signals HTTP 200 and delivers the FileEntries as a valid JSON stream.
+     * @param entries a stream of entries to deliver.
+     */
+    private StreamingServiceException streamReplies(Stream<FileEntry> entries) {
+        locks.readLock().lock(); // TODO: Will this lock always be held by the same thread when using lambdas?
+        final Iterator<FileEntry> iterator = entries.iterator();
+        final AtomicBoolean first = new AtomicBoolean(true);
+        return new StreamingServiceException("application/json", new CallbackInputStream(
+                () -> { // Producer
+                    try {
+                        if (first.get()) {
+                            first.set(false);
+                            return "{\n" + (iterator.hasNext() ? "" : "}");
+                        }
+                        if (!iterator.hasNext()) { // Depleted
+                            return "";
+                        }
+                        return iterator.next().toJSON() + (iterator.hasNext() ? ",\n" : "\n}");
+                    } catch (Exception e) {
+                        locks.readLock().unlock();
+                        throw new RuntimeException("Exception while writing output", e);
+                    }
+                },
+                depleted -> { // Finalizer
+                    locks.readLock().unlock();
+                }
+        ));
+    }
+
     public synchronized long toEpoch(String iso) {
         try {
             return iso8601.parse(iso).getTime();

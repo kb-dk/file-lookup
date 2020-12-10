@@ -76,12 +76,13 @@ public class FileEntry {
     }
 
     /**
+     * Matches the EntryReply in {@code openapi.json}.
      * @return a JSON representation of the entry, intended for external delivery.
      */
     public String toJSON() {
-        return String.format(Locale.ENGLISH, "{\"path\": \"%s\", \"filename\": %s, \"lastSeen\": \"%s\"}",
+        return String.format(Locale.ENGLISH, "{\"path\": \"%s\", \"filename\": %s, \"lastSeen\": \"%s\", \"lastSeenMS\": %d}",
                              escapeJSON(path), filename == null ? "null" : ("\"" + escapeJSON(filename) + "\""),
-                             getLastSeenAsISO8601());
+                             getLastSeenAsISO8601(), lastSeen);
     }
 
     String escapeJSON(String value) {
