@@ -125,6 +125,7 @@ paths:
                         Setting this to true with max=-1 or max>100000 will fail'
           schema:
             type: boolean
+            example: false
             default: false
       responses:
         '200':
