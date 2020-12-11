@@ -111,6 +111,22 @@ class MemoryImplTest {
             List<String> jsonLines = IOUtils.readLines(json, StandardCharsets.UTF_8);
             assertEquals(3, jsonLines.size(), "#entries + 2 lines should be returned");
         }
+        assertFalse(impl.startScan(".*").getRoots().isEmpty(),
+                    "Starting a new scan after stream export should work");
+    }
+
+    @Test
+    void testRegexpLookupStreamForceClose() throws IOException {
+        // max = -1 triggers streaming
+        try {
+            impl.getEntries(".*1", null, null, -1, false);
+        } catch (StreamingServiceException e) {
+            InputStream json = (InputStream)e.getEntity();
+            assertNotEquals(-1, json.read(), "A byte should be returned");
+            json.close();
+        }
+        assertFalse(impl.startScan(".*").getRoots().isEmpty(),
+                    "Starting a new scan after an untimely closed stream export should work");
     }
 
     @Test

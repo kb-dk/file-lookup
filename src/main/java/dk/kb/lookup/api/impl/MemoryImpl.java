@@ -113,7 +113,7 @@ public class MemoryImpl implements MergedApi {
      * @param entries a stream of entries to deliver.
      */
     private StreamingServiceException streamReplies(Stream<FileEntry> entries) {
-        locks.readLock().lock(); // TODO: Will this lock always be held by the same thread when using lambdas?
+        locks.readLock().lock();
         final Iterator<FileEntry> iterator = entries.iterator();
         final AtomicBoolean first = new AtomicBoolean(true);
         return new StreamingServiceException("application/json", new CallbackInputStream(
@@ -128,11 +128,14 @@ public class MemoryImpl implements MergedApi {
                         }
                         return iterator.next().toJSON() + (iterator.hasNext() ? ",\n" : "\n}");
                     } catch (Exception e) {
+
                         locks.readLock().unlock();
                         throw new RuntimeException("Exception while writing output", e);
                     }
                 },
                 depleted -> { // Finalizer
+                    // Manual check with breakpoints shows that InputStream.close is called if the client disconnects
+                    // This causes the depleted-callback to fire and thus release the lock
                     locks.readLock().unlock();
                 }
         ));
