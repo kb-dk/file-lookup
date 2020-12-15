@@ -16,6 +16,7 @@ import dk.kb.webservice.exception.StreamingServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.ws.rs.core.Response;
 import java.io.File;
 import java.nio.file.FileSystems;
 import java.nio.file.PathMatcher;
@@ -71,7 +72,7 @@ public class MemoryImpl implements MergedApi {
       * @implNote return will always produce a HTTP 200 code. Throw ServiceException if you need to return other codes
      */
     @Override
-    public List<EntryReplyDto> getEntries(
+    public Response getEntries(
             String regexp, String glob, String since, Long sinceEpochMS, Integer max, Boolean ordered)
             throws ServiceException {
         long sinceEpoch = sinceEpochMS == null ? 0 : sinceEpochMS;
@@ -107,9 +108,9 @@ public class MemoryImpl implements MergedApi {
 
             // If the max is low enough, collect the results immediately and return them
             if (limit > -1 && limit <= REPLY_STREAM_ACTIVATION) { // Return directly
-                return entries.
+                return Response.accepted(entries.
                         map(this::toReplyEntry).
-                        collect(Collectors.toList());
+                        collect(Collectors.toList())).build();
             }
 
             // It is potentially a very large result, so stream it

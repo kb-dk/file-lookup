@@ -1,0 +1,4 @@
+{{#useGenericResponse}}Response{{/useGenericResponse}}{{! non-generic response:
+}}{{^useGenericResponse}}{{!
+}}{{#vendorExtensions.x-useGenericResponse}}Response{{/vendorExtensions.x-useGenericResponse}}{{^vendorExtensions.x-useGenericResponse}}{{{returnType}}}{{/vendorExtensions.x-useGenericResponse}}{{!
+}}{{/useGenericResponse}}

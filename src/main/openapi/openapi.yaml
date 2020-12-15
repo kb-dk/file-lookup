@@ -136,6 +136,7 @@ paths:
             type: boolean
             example: false
             default: false
+      x-useGenericResponse: true
       responses:
         '200':
           description: 'A list with the path, filename and lastSeen timestamps for the matches, sorted oldest to newest.
