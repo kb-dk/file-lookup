@@ -31,6 +31,7 @@ import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -41,8 +42,7 @@ import java.util.stream.Collectors;
 
 /**
  * File system watcher that tracks multiple roots and automatically watches sub-folders.
- * Non-existing roots are checked for existence at regular intervals and will be added to the watched list if
- * created.
+ * Non-existing roots are checked for existence at regular intervals and will be added to the watched list if created.
  */
 public class WatchBot implements Closeable {
     private static Log log = LogFactory.getLog(WatchBot.class);
@@ -80,7 +80,7 @@ public class WatchBot implements Closeable {
         this.pathDeletedCallback = fileDeletedCallback;
         this.watchBotFailedCallback = watchBotFailedCallback;
         watcher = FileSystems.getDefault().newWatchService();
-        if (!(allOK = roots.stream().map(Paths::get).allMatch(this::addWatch))) {
+        if (!(allOK = roots.stream().map(Paths::get).map(Path::toAbsolutePath).allMatch(this::addWatch))) {
             log.error("Error: Unable to add watches for all roots");
         };
         watchBotDaemon = createDaemon();
@@ -110,12 +110,12 @@ public class WatchBot implements Closeable {
 
                         // The filename is the context of the event.
                         WatchEvent<Path> ev = (WatchEvent<Path>) event;
-                        Path filename = ev.context();
-                        log.info("Got event " + kind + " for path " + filename);
+                        Path path = ev.context();
+                        log.info("Got event " + kind + " for path " + path);
                         if (StandardWatchEventKinds.ENTRY_CREATE.equals(kind)) {
-                            pathCreatedCallback.accept(filename);
+                            pathCreated(path);
                         } else if (StandardWatchEventKinds.ENTRY_DELETE.equals(kind)) {
-                            pathDeletedCallback.accept(filename);
+                            pathDeleted(path);
                         }
                     }
                 } finally {
@@ -129,22 +129,44 @@ public class WatchBot implements Closeable {
         return watchBotDaemon;
     }
 
+    private void pathDeleted(Path path) {
+        path = path.toAbsolutePath();
+        pathDeletedCallback.accept(path);
+        if (Files.isDirectory(path)) {
+            addWatch(path);
+        }
+    }
+
+    private void pathCreated(Path path) {
+        path = path.toAbsolutePath();
+        pathCreatedCallback.accept(path);
+        if (Files.isDirectory(path)) {
+            removeWatch(path);
+        }
+    }
+
     /**
      * Add the given root to be watched for changes.
      * @param root the root to watch recursively.
      * @return true if the root was added.
      */
     public boolean addRoot(Path root) {
+        root = root.toAbsolutePath();
         synchronized (roots) {
             if (roots.contains(root)) {
                 log.info("addRoot(" + root + ") called, but the root was already registered");
                 return false;
             }
-            if (!Files.isDirectory(root)) {
+            if (Files.exists(root) && !Files.isDirectory(root)) {
                 log.warn("addRoot(" + root + ") called with something that is not a directory");
                 return false;
             }
             roots.add(root);
+        }
+        if (!Files.exists(root)) {
+            log.info("Added root '" + root + "' to the list of roots to be watched, " +
+                     "although is it not present at this time");
+            return true; // Fully legal to add a watch for a not-yet existing root
         }
         boolean result = addWatch(root);
         allOK &= result;
@@ -157,6 +179,7 @@ public class WatchBot implements Closeable {
      * @return true if the root was removed.
      */
     public boolean removeRoot(Path root) {
+        root = root.toAbsolutePath();
         synchronized (roots) {
             if (!roots.contains(root)) {
                 log.info("removeRoot(" + root + ") called, but the root was not registered");
@@ -188,19 +211,24 @@ public class WatchBot implements Closeable {
 
     /**
      * Clear watches on the folder recursively, if watches are present.
+     * Note that this scans the {@link #watchers} collection and not the file system, as a common reason for un-watching
+     * is that folders are deleted.
      * @param path the root to clear watches from.
-     * @return true ud the recursive remove was successful.
+     * @return true if the recursive remove was successful.
      */
     private boolean removeWatch(Path path) {
+        int removed = 0;
         synchronized (watchers) {
             try {
-                return descend(path, p -> {
-                    if (!Files.isDirectory(path) || !watchers.containsKey(path)) {
-                        return true;
+                for (Map.Entry<Path, WatchKey> pathWatchKeyEntry : watchers.entrySet()) {
+                    Path entryPath = pathWatchKeyEntry.getKey();
+                    if (entryPath.startsWith(path)) {
+                        watchers.remove(path).cancel();
+                        removed++;
                     }
-                    watchers.remove(path).cancel();
-                    return true;
-                });
+                }
+                log.debug("removeWatch(" + path + ") caused " + removed + " watches to be removed");
+                return true;
             } catch (Exception e) {
                 log.error("Exception while recursively removing watch for '" + path + "'", e);
                 return false;
@@ -211,7 +239,7 @@ public class WatchBot implements Closeable {
     /**
      * Add watches to the folder recursively, if they are not already being watched.
      * @param path the root to watch from.
-     * @return true ud the recursive add was successful.
+     * @return true if the recursive add was successful.
      */
     private boolean addWatch(Path path) {
         synchronized (watchers) {
