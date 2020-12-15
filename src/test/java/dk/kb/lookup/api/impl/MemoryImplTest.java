@@ -5,6 +5,7 @@ import dk.kb.lookup.config.ServiceConfig;
 import dk.kb.lookup.model.EntryReplyDto;
 import dk.kb.webservice.exception.NoContentServiceException;
 import dk.kb.webservice.exception.StreamingServiceException;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -15,13 +16,19 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardWatchEventKinds;
+import java.nio.file.WatchEvent;
+import java.nio.file.WatchKey;
+import java.nio.file.WatchService;
 import java.text.ParseException;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -49,6 +56,81 @@ class MemoryImplTest {
     static void useTestConfig() throws IOException, InterruptedException {
         ServiceConfig.initialize("file-lookup-test.yaml");
         impl = setupTestImpl(root);
+    }
+
+    // https://docs.oracle.com/javase/tutorial/essential/io/notification.html
+    @Test
+    void testWatching() throws IOException, InterruptedException {
+        AtomicInteger creations = new AtomicInteger(0);
+        AtomicInteger deletions = new AtomicInteger(0);
+
+        createFile("watchfolder/foo.bar.origin");
+        Path watchRoot = Paths.get(root.toString(), "watchfolder");
+
+        WatchService watcher = FileSystems.getDefault().newWatchService();
+        WatchKey watchKey = watchRoot.register(watcher,
+                                               StandardWatchEventKinds.ENTRY_CREATE,
+                                               StandardWatchEventKinds.ENTRY_DELETE,
+                                               StandardWatchEventKinds.OVERFLOW);
+        Thread t = new Thread(() -> {
+            while (true) {
+                try {
+                    watcher.take();
+                } catch (InterruptedException e) {
+                    return;
+                }
+                try {
+                    for (WatchEvent<?> event : watchKey.pollEvents()) {
+                        WatchEvent.Kind<?> kind = event.kind();
+
+                        if (kind == StandardWatchEventKinds.OVERFLOW) {
+                            log.info("Overflow detected");
+                            continue;
+                        }
+
+                        // The filename is the context of the event.
+                        WatchEvent<Path> ev = (WatchEvent<Path>) event;
+                        Path filename = ev.context();
+                        log.info("Got event " + kind + " for path " + filename);
+                        if (StandardWatchEventKinds.ENTRY_CREATE.equals(kind)) {
+                            creations.incrementAndGet();
+                        } else if (StandardWatchEventKinds.ENTRY_DELETE.equals(kind)) {
+                            deletions.incrementAndGet();
+                        }
+                    }
+                } finally {
+                    watchKey.reset();
+                }
+        }});
+        t.setDaemon(true);
+        t.start();
+
+        // Make changes
+        createFile("watchfolder/foo.bar.1");
+        createFile("watchfolder/foo.bar.1b");
+        Thread.sleep(100);
+        deleteFile("watchfolder/foo.bar.1");
+        Thread.sleep(100);
+        assertEquals(2, creations.get(), "The right number of files should be created");
+        assertEquals(1, deletions.get(), "The right number of files should be deleted");
+
+        createFile("watchfolder/subfolder/foo.bar.2");
+        Thread.sleep(100);
+        createFile("watchfolder/subfolder/foo.bar.3");
+        Thread.sleep(100);
+        assertEquals(3, creations.get(),
+                     "Creating multiple entries in a single sub-folder is only 1 create at root level");
+
+        // What happens when we remove the root folder?
+        FileUtils.deleteDirectory(watchRoot.toFile());
+        Thread.sleep(100);
+        createFile("watchfolder/foo.bar.originB");
+        Thread.sleep(100);
+        // Probably because the watched folder still exists (under Linux/EXT4 at least), as the watcher has its handle
+        assertEquals(3, creations.get(), "Re-creating the watched folder with a file should not trigger an event");
+
+        // Clean up for next test
+        setupTestImpl(root);
     }
 
     @Test
@@ -97,7 +179,13 @@ class MemoryImplTest {
 
     @Test
     void testRegexpLookup() {
-        assertEquals(1, impl.getEntries(".*1", null, null, 100, false).size(),
+        assertEquals(1, impl.getEntries(".*1", null, null, null, 100, false).size(),
+                     "The expected number of files should be located");
+    }
+
+    @Test
+    void testGlobLookup() {
+        assertEquals(1, impl.getEntries(null, "**/f*1", null, null, 100, false).size(),
                      "The expected number of files should be located");
     }
 
@@ -105,7 +193,7 @@ class MemoryImplTest {
     void testRegexpLookupStream() throws IOException {
         // max = -1 triggers streaming
         try {
-            impl.getEntries(".*1", null, null, -1, false);
+            impl.getEntries(".*1", null, null, null, -1, false);
         } catch (StreamingServiceException e) {
             InputStream json = (InputStream)e.getEntity();
             List<String> jsonLines = IOUtils.readLines(json, StandardCharsets.UTF_8);
@@ -119,7 +207,7 @@ class MemoryImplTest {
     void testRegexpLookupStreamForceClose() throws IOException {
         // max = -1 triggers streaming
         try {
-            impl.getEntries(".*1", null, null, -1, false);
+            impl.getEntries(".*1", null, null, null, -1, false);
         } catch (StreamingServiceException e) {
             InputStream json = (InputStream)e.getEntity();
             assertNotEquals(-1, json.read(), "A byte should be returned");
@@ -132,12 +220,12 @@ class MemoryImplTest {
     @Test
     void testTimeMSLookup()  {
         // Get the timestamp for an entry and the total entry count
-        List<EntryReplyDto> all = impl.getEntries(".*", null, null, 1000, true);
+        List<EntryReplyDto> all = impl.getEntries(".*", null, null, null, 1000, true);
         assertFalse(all.isEmpty(), "some files should be located");
         long firstTime = all.get(0).getLastSeenEpochMS();
 
         // Try requesting a bit later (1 ms later than the first)
-        List<EntryReplyDto> oneMsLater = impl.getEntries(null, null, firstTime+1, 1000, true);
+        List<EntryReplyDto> oneMsLater = impl.getEntries(null, null, null, firstTime+1, 1000, true);
         assertNotEquals(oneMsLater.size(), all.size(),
                         "Requesting 1 ms later than first entry should result in another number of entries returned");
     }
@@ -145,34 +233,32 @@ class MemoryImplTest {
     @Test
     void testTimeISOLookup() throws ParseException {
         // Get the timestamp for an entry and the total entry count
-        List<EntryReplyDto> all = impl.getEntries(".*", null, null, 1000, true);
+        List<EntryReplyDto> all = impl.getEntries(".*", null, null, null, 1000, true);
         assertFalse(all.isEmpty(), "some files should be located");
         String firstISO = all.get(0).getLastSeen();
         long firstTime = MemoryImpl.iso8601.parse(firstISO).getTime();
         
         // Try requesting a bit later (1 s as ISO-time only goes down to 1 second granularity in this API)
         String since = MemoryImpl.iso8601.format(new Date(firstTime+1000)); // 1 s later than the first
-        List<EntryReplyDto> oneMsLater = impl.getEntries(".*", since, null, 1000, true);
+        List<EntryReplyDto> oneMsLater = impl.getEntries(".*", null, since, null, 1000, true);
         assertNotEquals(oneMsLater.size(), all.size(),
                         "Requesting 1 second later than first entry should result in another number of entries returned");
     }
 
     private static MergedApi setupTestImpl(Path root) throws IOException, InterruptedException {
-        Path[] files = new Path[]{
-                Paths.get(root.toString(), "file1"),
-                Paths.get(root.toString(), "file2")
+        String[] files = new String[]{
+                "file1",
+                "file2"
         };
 
+        if (Files.exists(root)) {
+            FileUtils.deleteDirectory(root.toFile());
+        }
         if (!Files.exists(root)) {
             Files.createDirectory(root);
         }
-        for (Path file: files) {
-            log.debug("Creating test file " + file);
-
-            try (FileOutputStream out = new FileOutputStream(file.toFile())) {
-                out.write(87);
-                out.flush();
-            }
+        for (String file: files) {
+            createFile(file);
         }
 
         MergedApi impl = new MemoryImpl();
@@ -182,6 +268,33 @@ class MemoryImplTest {
         assertEquals(files.length, impl.getFilecount(), "There should be the expected number of files");
 
         return impl;
+    }
+
+    private static void createFile(String file) throws IOException {
+        log.debug("Creating test file " + file);
+        Path realFile = Paths.get(root.toString(), file);
+        if (!Files.exists(realFile.getParent())) {
+            Files.createDirectory(realFile.getParent());
+        }
+        try (FileOutputStream out = new FileOutputStream(realFile.toFile())) {
+            out.write(87);
+            out.flush();
+        }
+    }
+
+   private static void createFolder(String folder) throws IOException {
+        log.debug("Creating test file " + folder);
+        Path realFile = Paths.get(root.toString(), folder);
+        try (FileOutputStream out = new FileOutputStream(realFile.toFile())) {
+            out.write(87);
+            out.flush();
+        }
+    }
+
+    private static void deleteFile(String file) throws IOException {
+        log.debug("Deleting test file " + file);
+        Path realFile = Paths.get(root.toString(), file);
+        Files.delete(realFile);
     }
 
     @SuppressWarnings("BusyWait")

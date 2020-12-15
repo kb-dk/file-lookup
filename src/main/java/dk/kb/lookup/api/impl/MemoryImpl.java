@@ -17,6 +17,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.nio.file.FileSystems;
+import java.nio.file.PathMatcher;
+import java.nio.file.Paths;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -45,9 +48,11 @@ public class MemoryImpl implements MergedApi {
     private final static ReadWriteLock locks = new ReentrantReadWriteLock();
 
     /**
-     * Get the entries (path, filename and lastSeen) based on a given regexp or start time. Note that this is potentially a heavy request
+     * Get the entries (path, filename and lastSeen) based on a multiple optional constraints. All returned entries fulfills all given constraints. Note that this is potentially a heavy request
      *
      * @param regexp: The regexp which will be matched against the full path + filename
+     *
+     * @param glob: Glob-style matcher, which will be matched against the full path + filename. See https://docs.oracle.com/javase/7/docs/api/java/nio/file/FileSystem.html#getPathMatcher(java.lang.String) for syntax
      *
      * @param since: Only entries newer than this will be returned
      *
@@ -55,7 +60,7 @@ public class MemoryImpl implements MergedApi {
      *
      * @param max: The maximum number of entries to return, -1 if there is no limit
      *
-     * @param ordered: If true, the entries are returned ordered by their timestamp. For large result sets this can have a negative impact on performance
+     * @param ordered: If true, the entries are returned ordered by their timestamp. Setting this to true with max&#x3D;-1 or max&gt;100000 will fail
      *
      * @return <ul>
       *   <li>code = 200, message = "A list with the path, filename and lastSeen timestamps for the matches, sorted oldest to newest. The list can be empty", response = EntryReplyDto.class, responseContainer = "List"</li>
@@ -66,20 +71,25 @@ public class MemoryImpl implements MergedApi {
       * @implNote return will always produce a HTTP 200 code. Throw ServiceException if you need to return other codes
      */
     @Override
-    public List<EntryReplyDto> getEntries(String regexp, String since, Long sinceEpochMS, Integer max, Boolean ordered) throws ServiceException {
+    public List<EntryReplyDto> getEntries(
+            String regexp, String glob, String since, Long sinceEpochMS, Integer max, Boolean ordered)
+            throws ServiceException {
         long sinceEpoch = sinceEpochMS == null ? 0 : sinceEpochMS;
         if (since != null) {
             sinceEpoch = Math.max(sinceEpoch, toEpoch(since));
         }
+
         final long finalSince = sinceEpoch;
-
         final int limit = max == -1 ? Integer.MAX_VALUE : max;
-        Pattern pattern = regexp == null ? null : Pattern.compile(regexp);
-        ordered = ordered != null && ordered;
+        Pattern pattern = regexp == null || regexp.isEmpty() ? null :
+                Pattern.compile(regexp);
+        PathMatcher globMatcher = glob == null  || glob.isEmpty() ? null :
+                FileSystems.getDefault().getPathMatcher("glob:" + glob);
 
+        ordered = ordered != null && ordered;
         if (ordered && limit > REPLY_SORT_LIMIT) {
             throw new InvalidArgumentServiceException(
-                    "A sorted response was requested but max=" + max + " exceeds the sort limit of " + REPLY_SORT_LIMIT);
+                    "Sorted response was requested but max=" + max + " exceeds the sort limit of " + REPLY_SORT_LIMIT);
         }
 
         try {
@@ -89,7 +99,10 @@ public class MemoryImpl implements MergedApi {
             Stream<FileEntry> entries = filenameMap.values().stream().
                     filter(entry -> entry.lastSeen >= finalSince).
                     filter(entry -> pattern == null || pattern.matcher(entry.getFullpath()).matches()).
+                    filter(entry -> globMatcher == null || globMatcher.matches(Paths.get(entry.getFullpath()))).
                     limit(limit);
+
+            // Sort if needed
             entries = ordered ? entries.sorted(Comparator.comparingLong(e -> e.lastSeen)) : entries;
 
             // If the max is low enough, collect the results immediately and return them

@@ -84,7 +84,8 @@ paths:
     get:
       tags:
         - Lookup
-      summary: 'Get the entries (path, filename and lastSeen) based on a given regexp or start time.
+      summary: 'Get the entries (path, filename and lastSeen) based on a multiple optional constraints.
+                All returned entries fulfills all given constraints.
                 Note that this is potentially a heavy request'
       operationId: getEntries
       parameters:
@@ -95,6 +96,14 @@ paths:
           schema:
             type: string
             example: '.*/harvest_246/.*2020-12-02.*\\.warc.*'
+        - name: glob
+          in: query
+          required: false
+          description: 'Glob-style matcher, which will be matched against the full path + filename.
+                        See https://docs.oracle.com/javase/7/docs/api/java/nio/file/FileSystem.html#getPathMatcher(java.lang.String) for syntax'
+          schema:
+            type: string
+            example: '**/harvest_246/*2020-12-02*.warc.*'
         - name: since
           in: query
           required: false
