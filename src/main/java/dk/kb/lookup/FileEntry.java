@@ -14,6 +14,7 @@
  */
 package dk.kb.lookup;
 
+import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -72,7 +73,7 @@ public class FileEntry {
      * @return the concatenated path and the filename. If the filename is null, only the path is returned.
      */
     public String getFullpath() {
-        return path + (filename == null ? "" : filename);
+        return path + (filename == null ? "" : File.separator + filename);
     }
 
     /**
@@ -83,6 +84,10 @@ public class FileEntry {
         return String.format(Locale.ENGLISH, "{\"path\": \"%s\", \"filename\": %s, \"lastSeen\": \"%s\", \"lastSeenMS\": %d}",
                              escapeJSON(path), filename == null ? "null" : ("\"" + escapeJSON(filename) + "\""),
                              getLastSeenAsISO8601(), lastSeen);
+    }
+
+    public String toString() {
+        return "FileEntry(" + getFullpath() + " @ " + getLastSeenAsISO8601() + ")";
     }
 
     String escapeJSON(String value) {
