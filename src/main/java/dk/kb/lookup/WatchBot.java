@@ -87,6 +87,7 @@ public class WatchBot implements Closeable {
         log.info("Created " + this);
     }
 
+    @SuppressWarnings("unchecked") // (WatchEvent<Path>) cast
     private Thread createDaemon() {
         Thread watchBotDaemon = new Thread(() -> {
             while (true) {
