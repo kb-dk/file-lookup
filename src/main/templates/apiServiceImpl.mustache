@@ -23,8 +23,15 @@ import org.openapitools.codegen.utils.JsonCache;
 import org.openapitools.codegen.utils.JsonCache.CacheException;
 {{/loadTestDataFromFile}}
 {{/generateOperationBody}}
+import javax.validation.constraints.NotNull;
 import javax.ws.rs.*;
+import javax.ws.rs.core.Context;
+import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Request;
+import javax.servlet.http.HttpServletRequest;
+import javax.ws.rs.core.Request;
+import javax.ws.rs.core.MediaType;
 import org.apache.cxf.jaxrs.model.wadl.Description;
 import org.apache.cxf.jaxrs.model.wadl.DocTarget;
 
@@ -90,23 +97,49 @@ public class {{classname}}ServiceImpl implements {{classname}} {
      */
     {{/summary}}
     @Override
-    public {{>returnTypes}} {{operationId}}({{#allParams}}{{>queryParamsImpl}}{{>pathParamsImpl}}{{>headerParamsImpl}}{{>bodyParamsImpl}}{{>formParamsImpl}}{{#hasMore}}, {{/hasMore}}{{/allParams}}) throws ServiceException {
+    public {{>returnTypes}} {{operationId}}({{!
+        }}{{>contextParamsImpl}}{{!
+        }}{{#allParams}}{{!
+            }}{{>pathParamsImpl}}{{!
+            }}{{>queryParamsImpl}}{{!
+            }}{{>headerParamsImpl}}{{!
+            }}{{>bodyParamsImpl}}{{!
+            }}{{>formParamsImpl}}{{!
+            }}{{#hasMore}}, {{/hasMore}}{{!
+        }}{{/allParams}}) throws ServiceException {
     {{^loadTestDataFromFile}}
         // TODO: Implement...
-    {{/loadTestDataFromFile}}
-{{! generic response:
-        }}{{#useGenericResponse}}return Response.ok().entity("magic!").build();{{/useGenericResponse}}{{!
-non-generic response: }}{{^useGenericResponse}}{{!
-non-void response: }}{{^vendorExtensions.x-java-is-response-void}}{{!
-pre-populated operation body: }}{{#generateOperationBody}}
-        try{
-    {{{vendorExtensions.x-java-operation-body}}}
+    {{/loadTestDataFromFile}}{{!
+
+}}{{! generic response: }}
+        {{#useGenericResponse}}{{!
+            }}return Response.ok().entity("magic!").build();{{/useGenericResponse}}{{!
+non-generic response:
+        }}{{^useGenericResponse}}{{!
+        }}{{#vendorExtensions.x-useGenericResponse}}
+        return Response.ok().entity("magic!").build();
+        {{/vendorExtensions.x-useGenericResponse}}{{!
+        }}{{^vendorExtensions.x-useGenericResponse}}{{!
+non-void response:
+                }}{{^vendorExtensions.x-java-is-response-void}}{{!
+pre-populated operation body:
+                    }}{{#generateOperationBody}}
+        try{ {{#vendorExtensions.x-streamingOutput}}
+            httpServletResponse.setHeader("Content-Disposition", "inline; filename=\"filename.ext\"");
+            return output -> output.write("Magic".getBytes(java.nio.charset.StandardCharsets.UTF_8));{{!
+        }}{{/vendorExtensions.x-streamingOutput}}{{!
+        }}{{^vendorExtensions.x-streamingOutput}}
+    {{{vendorExtensions.x-java-operation-body}}}{{!
+        }}{{/vendorExtensions.x-streamingOutput}}
         } catch (Exception e){
             throw handleException(e);
-        }{{/generateOperationBody}}{{!
-null response: }}{{^generateOperationBody}}                return null;{{/generateOperationBody}}{{!
-}}{{/vendorExtensions.x-java-is-response-void}}{{!
-}}{{/useGenericResponse}}
+        }{{/generateOperationBody}}
+    {{! null response:
+    }}{{^generateOperationBody}}
+        return null;{{/generateOperationBody}}{{!
+    }}{{/vendorExtensions.x-java-is-response-void}}{{!
+            }}{{/vendorExtensions.x-useGenericResponse}}{{!
+    }}{{/useGenericResponse}}
     }
 
 {{/operation}}

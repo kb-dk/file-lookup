@@ -4,17 +4,19 @@ import dk.kb.lookup.api.MergedApi;
 import dk.kb.lookup.config.ServiceConfig;
 import dk.kb.lookup.model.EntryReplyDto;
 import dk.kb.webservice.exception.NoContentServiceException;
-import dk.kb.webservice.exception.StreamingServiceException;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.ws.rs.core.Response;
+import java.io.BufferedInputStream;
+import java.io.BufferedReader;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -24,7 +26,6 @@ import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
-import java.text.ParseException;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -58,6 +59,7 @@ class MemoryImplTest {
         impl = setupTestImpl(root);
     }
 
+    // Explorative test. To be replaced  by a WatchBot unit test
     // https://docs.oracle.com/javase/tutorial/essential/io/notification.html
     @Test
     void testWatching() throws IOException, InterruptedException {
@@ -177,75 +179,102 @@ class MemoryImplTest {
         fail("Requesting 'not_there' should fail properly");
     }
 
-    //You can fix your tests yourself
-    //@Test
-    //void testRegexpLookup() {
-    //    assertEquals(1, impl.getEntries(".*1", null, null, null, 100, false).size(),
-    //                 "The expected number of files should be located");
-    //}
-    //
-    //@Test
-    //void testGlobLookup() {
-    //    assertEquals(1, impl.getEntries(null, "**/f*1", null, null, 100, false).size(),
-    //                 "The expected number of files should be located");
-    //}
+    @Test
+    void testRegexpLookup() {
+        assertEquals(1, countEntries(impl.getEntries(".*1", null, null, null,  100, false)),
+                     "The expected number of files should be located");
+    }
+
+    private int countEntries(javax.ws.rs.core.Response entries) {
+        if (entries.getEntity() instanceof List) {
+            return toList(entries).size();
+        }
+        if (entries.getEntity() instanceof InputStream) {
+            int count = 0;
+            BufferedReader in = new BufferedReader(
+                    new InputStreamReader((InputStream) entries.getEntity(), StandardCharsets.UTF_8));
+            while (true) {
+                try {
+                    if ((in.readLine() == null)) break;
+                } catch (IOException e) {
+                    throw new RuntimeException("IOException counting lines from stream", e);
+                }
+                count++;
+            }
+            return count;
+        }
+        throw new UnsupportedOperationException(
+                "Cannot count entries for reply class " + entries.getEntity().getClass());
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<EntryReplyDto> toList(Response entries) {
+        if (entries.getEntity() instanceof List) {
+            return (List<EntryReplyDto>)entries.getEntity();
+        }
+        throw new UnsupportedOperationException(
+                "Cannot return entries for reply class " + entries.getEntity().getClass());
+    }
+
+
+
+    @Test
+    void testGlobLookup() {
+        assertEquals(1, countEntries(impl.getEntries(null,"**/f*1", null, null,  100, false)),
+                     "The expected number of files should be located");
+    }
 
     @Test
     void testRegexpLookupStream() throws IOException {
-        // max = -1 triggers streaming
-        try {
-            impl.getEntries(".*1", null, null, null, -1, false);
-        } catch (StreamingServiceException e) {
-            InputStream json = (InputStream)e.getEntity();
-            List<String> jsonLines = IOUtils.readLines(json, StandardCharsets.UTF_8);
-            assertEquals(3, jsonLines.size(), "#entries + 2 lines should be returned");
-        }
+        assertEquals(1, countEntries(impl.getEntries(".*1", null, null, null,  -1, false)),
+                     "The expected number of files should be located using streaming");
         assertFalse(impl.startScan(".*").getRoots().isEmpty(),
                     "Starting a new scan after stream export should work");
     }
 
-    @Test
-    void testRegexpLookupStreamForceClose() throws IOException {
-        // max = -1 triggers streaming
-        try {
-            impl.getEntries(".*1", null, null, null, -1, false);
-        } catch (StreamingServiceException e) {
-            InputStream json = (InputStream)e.getEntity();
-            assertNotEquals(-1, json.read(), "A byte should be returned");
-            json.close();
-        }
-        assertFalse(impl.startScan(".*").getRoots().isEmpty(),
-                    "Starting a new scan after an untimely closed stream export should work");
-    }
+    // TODO: Reimplement this
+//    @Test
+//    void testRegexpLookupStreamForceClose() throws IOException {
+//        // max = -1 triggers streaming
+//        try {
+//            impl.getEntries(null, null, ".*1", null, null, null, -1, false);
+//        } catch (StreamingServiceException e) {
+//            InputStream json = (InputStream)e.getEntity();
+//            assertNotEquals(-1, json.read(), "A byte should be returned");
+//            json.close();
+//        }
+//        assertFalse(impl.startScan(".*").getRoots().isEmpty(),
+//                    "Starting a new scan after an untimely closed stream export should work");
+//    }
     
     //You can fix your tests yourself
-   /* @Test
+    @Test
     void testTimeMSLookup()  {
         // Get the timestamp for an entry and the total entry count
-        List<EntryReplyDto> all = impl.getEntries(".*", null, null, null, 1000, true);
+        List<EntryReplyDto> all = toList(impl.getEntries(".*", null, null, null, 1000, true));
         assertFalse(all.isEmpty(), "some files should be located");
         long firstTime = all.get(0).getLastSeenEpochMS();
 
         // Try requesting a bit later (1 ms later than the first)
-        List<EntryReplyDto> oneMsLater = impl.getEntries(null, null, null, firstTime+1, 1000, true);
+        List<EntryReplyDto> oneMsLater = toList(impl.getEntries(null, null, null, firstTime+1, 1000, true));
         assertNotEquals(oneMsLater.size(), all.size(),
                         "Requesting 1 ms later than first entry should result in another number of entries returned");
     }
-*/
-  /*  @Test
-    void testTimeISOLookup() throws ParseException {
+
+    @Test
+    void testTimeISOLookup() throws Exception {
         // Get the timestamp for an entry and the total entry count
-        List<EntryReplyDto> all = impl.getEntries(".*", null, null, null, 1000, true);
+        List<EntryReplyDto> all = toList(impl.getEntries(".*", null, null, null, 1000, true));
         assertFalse(all.isEmpty(), "some files should be located");
         String firstISO = all.get(0).getLastSeen();
         long firstTime = MemoryImpl.iso8601.parse(firstISO).getTime();
-        
+
         // Try requesting a bit later (1 s as ISO-time only goes down to 1 second granularity in this API)
-        String since = MemoryImpl.iso8601.format(new Date(firstTime+1000)); // 1 s later than the first
-        List<EntryReplyDto> oneMsLater = impl.getEntries(".*", null, since, null, 1000, true);
+        String since = MemoryImpl.iso8601.format(new Date(firstTime + 1000)); // 1 s later than the first
+        List<EntryReplyDto> oneMsLater = toList(impl.getEntries(".*", null, since, null, 1000, true));
         assertNotEquals(oneMsLater.size(), all.size(),
                         "Requesting 1 second later than first entry should result in another number of entries returned");
-    }*/
+    }
 
     private static MergedApi setupTestImpl(Path root) throws IOException, InterruptedException {
         String[] files = new String[]{

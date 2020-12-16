@@ -136,7 +136,8 @@ paths:
             type: boolean
             example: false
             default: false
-      x-useGenericResponse: true
+      x-useGenericResponse: true # If enabled the method will return Response
+      x-streamingOutput: false # If enabled the method will return StreamingOutput. Default impl. requires x-servletResponseParam
       responses:
         '200':
           description: 'A list with the path, filename and lastSeen timestamps for the matches, sorted oldest to newest.
