@@ -16,10 +16,9 @@ import dk.kb.webservice.exception.StreamingServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.Response;
 import java.io.File;
+import java.io.InputStream;
 import java.nio.file.FileSystems;
 import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
@@ -74,9 +73,7 @@ public class MemoryImpl implements MergedApi {
       * @implNote return will always produce a HTTP 200 code. Throw ServiceException if you need to return other codes
      */
     @Override
-    public List<EntryReplyDto> getEntries(
-            HttpServletRequest httpServletRequest, HttpServletResponse response, String regexp, String glob, String since, Long sinceEpochMS, Integer max, Boolean ordered)
-            throws ServiceException {
+    public Response getEntries(String regexp, String glob, String since, Long sinceEpochMS, Integer max, Boolean ordered) throws ServiceException {
         long sinceEpoch = sinceEpochMS == null ? 0 : sinceEpochMS;
         if (since != null) {
             sinceEpoch = Math.max(sinceEpoch, toEpoch(since));
@@ -108,18 +105,16 @@ public class MemoryImpl implements MergedApi {
             // Sort if needed
             entries = ordered ? entries.sorted(Comparator.comparingLong(e -> e.lastSeen)) : entries;
 
+            // Convert to reply objects
+            Stream<EntryReplyDto> replyEntries = entries.map(this::toReplyEntry);
+
             // If the max is low enough, collect the results immediately and return them
             if (limit > -1 && limit <= REPLY_STREAM_ACTIVATION) { // Return directly
-                //return Response.accepted(entries.
-                //        map(this::toReplyEntry).
-                //        collect(Collectors.toList())).build();
-                return entries.
-                        map(this::toReplyEntry).
-                        collect(Collectors.toList());
+                return Response.accepted(replyEntries.collect(Collectors.toList())).build();
             }
 
             // It is potentially a very large result, so stream it
-            throw streamReplies(entries);
+            return Response.accepted(streamReplies(replyEntries)).build();
         } catch (Exception e) {
             throw handleException(e);
         } finally {
@@ -128,36 +123,28 @@ public class MemoryImpl implements MergedApi {
     }
 
     /**
-     * Creates an "Exception" that signals HTTP 200 and delivers the FileEntries as a valid JSON stream.
-     * @param entries a stream of entries to deliver.
+     * Streams replies as valid JSON, taking care of releasing the read lock.
+     * @param entries the entries to stream.
+     * @return an InputStream lazily populated by the entries stream.
      */
-    private StreamingServiceException streamReplies(Stream<FileEntry> entries) {
+    private InputStream streamReplies(Stream<EntryReplyDto> entries) {
         locks.readLock().lock();
-        final Iterator<FileEntry> iterator = entries.iterator();
-        final AtomicBoolean first = new AtomicBoolean(true);
-        return new StreamingServiceException("application/json", new CallbackInputStream(
+        final Iterator<EntryReplyDto> iterator = entries.iterator();
+        return new CallbackInputStream(CallbackInputStream.makeJSONProducer(
                 () -> { // Producer
                     try {
-                        if (first.get()) {
-                            first.set(false);
-                            return "{\n" + (iterator.hasNext() ? "" : "}");
-                        }
-                        if (!iterator.hasNext()) { // Depleted
-                            return "";
-                        }
-                        return iterator.next().toJSON() + (iterator.hasNext() ? ",\n" : "\n}");
+                        return iterator.hasNext() ? iterator.next() : null;
                     } catch (Exception e) {
-
                         locks.readLock().unlock();
                         throw new RuntimeException("Exception while writing output", e);
                     }
-                },
+                }),
                 depleted -> { // Finalizer
                     // Manual check with breakpoints shows that InputStream.close is called if the client disconnects
                     // This causes the depleted-callback to fire and thus release the lock
                     locks.readLock().unlock();
                 }
-        ));
+        );
     }
 
     public synchronized long toEpoch(String iso) {
