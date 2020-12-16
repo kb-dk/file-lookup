@@ -50,7 +50,9 @@ public class WatchBot implements Closeable {
     private final Map<Path, WatchKey> watchers = new HashMap<>();
     private final WatchService watcher;
     private final int maxWatchers;
-    private final Set<Path> roots;
+    private final Set<Path> roots = new HashSet<>(); // All roots (sum of watchedRoots and unwatchedRoots)
+    private final Set<Path> watchedRoots = new HashSet<>();
+    private final Set<Path> unwatchedRoots = new HashSet<>();
 
     private final Consumer<Path> pathCreatedCallback;
     private final Consumer<Path> pathDeletedCallback;
@@ -58,6 +60,7 @@ public class WatchBot implements Closeable {
     private boolean allOK = true;
     private boolean closed = false;
     private Thread watchBotDaemon;
+    private Thread rootChecker;
 
     /**
      * Creates a new Watchbot with the given setup and starts watching the roots immediately.
@@ -75,22 +78,26 @@ public class WatchBot implements Closeable {
                     Consumer<Path> fileCreatedCallback, Consumer<Path> fileDeletedCallback,
                     Runnable watchBotFailedCallback) throws IOException {
         this.maxWatchers = maxWatches;
-        this.roots = roots.stream().map(Paths::get).collect(Collectors.toCollection(HashSet::new));
         this.pathCreatedCallback = fileCreatedCallback;
         this.pathDeletedCallback = fileDeletedCallback;
         this.watchBotFailedCallback = watchBotFailedCallback;
         watcher = FileSystems.getDefault().newWatchService();
-        if (!(allOK = roots.stream().map(Paths::get).map(Path::toAbsolutePath).allMatch(this::addWatch))) {
-            log.error("Error: Unable to add watches for all roots");
+        roots.stream().map(Paths::get).map(Path::toAbsolutePath).forEach(this::addRoot);
+        if (!unwatchedRoots.isEmpty()) {
+            log.warn("Warning: Unable to add watchers for roots " + unwatchedRoots);
         };
         watchBotDaemon = createDaemon();
+        rootChecker = createRootChecker();
         log.info("Created " + this);
     }
 
+    /**
+     * @return the thread responsible for polling for changes to the structure under the roots.
+     */
     @SuppressWarnings("unchecked") // (WatchEvent<Path>) cast
     private Thread createDaemon() {
         Thread watchBotDaemon = new Thread(() -> {
-            while (true) {
+            while (!closed) {
                 WatchKey watchKey;
                 try {
                     watchKey = watcher.take();
@@ -130,6 +137,21 @@ public class WatchBot implements Closeable {
         return watchBotDaemon;
     }
 
+    /**
+     * @return a thread that periodically checks for creation or deletion of roots.
+     */
+    private Thread createRootChecker() {
+        Thread rootChecker = new Thread(() -> {
+            while (!closed) {
+
+            }
+        });
+        rootChecker.setName("WatchBotRootChecker");
+        rootChecker.setDaemon(true);
+        rootChecker.start();
+        return rootChecker;
+    }
+
     private void pathDeleted(Path path) {
         path = path.toAbsolutePath();
         pathDeletedCallback.accept(path);
@@ -158,20 +180,27 @@ public class WatchBot implements Closeable {
                 log.info("addRoot(" + root + ") called, but the root was already registered");
                 return false;
             }
-            if (Files.exists(root) && !Files.isDirectory(root)) {
+            if (!Files.exists(root)) {
+                log.debug("addRoot(" + root + ") received a non-existing folder. " +
+                          "Watchers will be assigned if it is created at a later point in time");
+                unwatchedRoots.add(root);
+                return true;
+            }
+            if (!Files.isDirectory(root)) {
                 log.warn("addRoot(" + root + ") called with something that is not a directory");
                 return false;
             }
+
             roots.add(root);
+            boolean result = addWatch(root);
+            if (result) {
+                watchedRoots.add(root);
+            } else {
+                unwatchedRoots.add(root);
+            }
+            allOK &= result;
+            return result;
         }
-        if (!Files.exists(root)) {
-            log.info("Added root '" + root + "' to the list of roots to be watched, " +
-                     "although is it not present at this time");
-            return true; // Fully legal to add a watch for a not-yet existing root
-        }
-        boolean result = addWatch(root);
-        allOK &= result;
-        return result;
     }
 
     /**
@@ -187,6 +216,8 @@ public class WatchBot implements Closeable {
                 return false;
             }
             roots.remove(root);
+            watchedRoots.remove(root);
+            unwatchedRoots.remove(root);
         }
         boolean result = removeWatch(root);
         allOK &= result;
