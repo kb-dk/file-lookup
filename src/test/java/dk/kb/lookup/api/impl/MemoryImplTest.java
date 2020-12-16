@@ -25,6 +25,7 @@ import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -230,7 +231,7 @@ class MemoryImplTest {
                         "Requesting 1 ms later than first entry should result in another number of entries returned");
     }
     @Test
-    void testTimeISOLookup() throws ParseException {
+    void testTimeISOLookup() throws Exception {
         // Get the timestamp for an entry and the total entry count
         List<EntryReplyDto> all = impl.getEntries(null, null,".*", null, null, null, 1000, true);
         assertFalse(all.isEmpty(), "some files should be located");
@@ -238,7 +239,7 @@ class MemoryImplTest {
         long firstTime = MemoryImpl.iso8601.parse(firstISO).getTime();
 
         // Try requesting a bit later (1 s as ISO-time only goes down to 1 second granularity in this API)
-        String since = MemoryImpl.iso8601.format(new Date(firstTime+1000)); // 1 s later than the first
+        String since = MemoryImpl.iso8601.format(new Date(firstTime + 1000)); // 1 s later than the first
         List<EntryReplyDto> oneMsLater = impl.getEntries(null,null,".*", null, since, null, 1000, true);
         assertNotEquals(oneMsLater.size(), all.size(),
                         "Requesting 1 second later than first entry should result in another number of entries returned");
