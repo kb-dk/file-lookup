@@ -14,6 +14,9 @@
  */
 package dk.kb.lookup;
 
+import com.fasterxml.jackson.core.util.MinimalPrettyPrinter;
+import com.fasterxml.jackson.databind.ObjectWriter;
+import io.swagger.util.Json;
 import org.apache.commons.logging.LogFactory;
 import org.apache.commons.logging.Log;
 
@@ -23,6 +26,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /**
@@ -81,6 +85,39 @@ public class CallbackInputStream extends InputStream {
                 sink.write(producer.call().getBytes(StandardCharsets.UTF_8));
             } catch (Exception e) {
                 throw new RuntimeException("Exception calling producer", e);
+            }
+        };
+    }
+
+    /**
+     * Takes a Jackson-annotated JSON Object (likely defined by Swagger and stored in the {@code model} folder)
+     * and converts it to a single-line UTF-8 String representation.
+     * @param producer a producer of Jackson-annotated JSON Objects. Returning null signals no more data.
+     * @return the JSON producer wrapped to deliver bytes.
+     */
+    public static Consumer<ByteArrayOutputStream> makeJSONProducer(Callable<Object> producer) {
+        final ObjectWriter jsonWriter = Json.mapper().writer(new MinimalPrettyPrinter());
+        final AtomicBoolean first = new AtomicBoolean(true);
+        final AtomicBoolean depleted = new AtomicBoolean(false);
+        return sink -> {
+            if (depleted.get()) {
+                return;
+            }
+            try {
+                String result = first.get() ? "{" : "";
+                Object jsonObject = producer.call();
+                if (jsonObject == null) {
+                    result += "}";
+                } else {
+                    if (!first.get()) {
+                        result += ",\n";
+                    }
+                    result += jsonWriter.writeValueAsString(jsonObject);
+                }
+                first.set(false);
+                sink.write(result.getBytes(StandardCharsets.UTF_8));
+            } catch (Exception e) {
+                log.error("Exception in makeJSONProducer. Ending stream", e);
             }
         };
     }
