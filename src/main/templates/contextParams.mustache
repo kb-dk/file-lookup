@@ -1,2 +1,16 @@
+{{!
+TODO handle the rest of them
+The object instances that it can inject are the following:
+SecurityContext – Security context instance for the current HTTP request
+Request – Used for setting precondition request processing
+Application, Configuration, and Providers -> Provide access to the JAX-RS application, configuration, and providers instances
+ResourceContext – Resource context class instances
+ServletConfig – The ServletConfig instance instance
+ServletContext – The ServletContext instance
+HttpServletRequest – The HttpServletRequest instance for the current request
+HttpServletResponse – The HttpServletResponse instance for the current request
+HttpHeaders – Maintains the HTTP header keys and values
+UriInfo – Query parameters and path variables from the URI called
+}}
 {{#vendorExtensions.x-servletRequestParam}}@Context HttpServletRequest httpServletRequest{{/vendorExtensions.x-servletRequestParam}}{{!
 }}{{#vendorExtensions.x-servletResponseParam}}{{#vendorExtensions.x-servletRequestParam}}, {{/vendorExtensions.x-servletRequestParam}}@Context HttpServletResponse httpServletResponse{{#hasParams}}, {{/hasParams}}{{/vendorExtensions.x-servletResponseParam}}

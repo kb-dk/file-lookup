@@ -97,13 +97,13 @@ public class {{classname}}ServiceImpl implements {{classname}} {
     {{/summary}}
     @Override
     public {{>returnTypes}} {{operationId}}({{!
-        }}{{>contextParams}}{{!
+        }}{{>contextParamsImpl}}{{!
         }}{{#allParams}}{{!
-            }}{{>pathParams}}{{!
-            }}{{>queryParams}}{{!
-            }}{{>headerParams}}{{!
-            }}{{>bodyParams}}{{!
-            }}{{>formParams}}{{!
+            }}{{>pathParamsImpl}}{{!
+            }}{{>queryParamsImpl}}{{!
+            }}{{>headerParamsImpl}}{{!
+            }}{{>bodyParamsImpl}}{{!
+            }}{{>formParamsImpl}}{{!
             }}{{#hasMore}}, {{/hasMore}}{{!
         }}{{/allParams}}) throws ServiceException {
     {{^loadTestDataFromFile}}
