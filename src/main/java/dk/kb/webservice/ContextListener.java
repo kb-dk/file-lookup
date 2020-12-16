@@ -46,7 +46,7 @@ public class ContextListener implements ServletContextListener {
 
     @Override
     public void contextDestroyed(ServletContextEvent sce) {
-        log.debug("Template service destroyed");
+        log.debug("Service destroyed");
     }
 
 }

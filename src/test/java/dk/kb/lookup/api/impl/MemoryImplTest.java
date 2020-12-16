@@ -176,24 +176,23 @@ class MemoryImplTest {
         fail("Requesting 'not_there' should fail properly");
     }
 
-    //You can fix your tests yourself
-    //@Test
-    //void testRegexpLookup() {
-    //    assertEquals(1, impl.getEntries(".*1", null, null, null, 100, false).size(),
-    //                 "The expected number of files should be located");
-    //}
-    //
-    //@Test
-    //void testGlobLookup() {
-    //    assertEquals(1, impl.getEntries(null, "**/f*1", null, null, 100, false).size(),
-    //                 "The expected number of files should be located");
-    //}
+    @Test
+    void testRegexpLookup() {
+        assertEquals(1, impl.getEntries(null, null,".*1", null, null, null, 100, false).size(),
+                     "The expected number of files should be located");
+    }
+
+    @Test
+    void testGlobLookup() {
+        assertEquals(1, impl.getEntries(null,null,null, "**/f*1", null, null, 100, false).size(),
+                     "The expected number of files should be located");
+    }
 
     @Test
     void testRegexpLookupStream() throws IOException {
         // max = -1 triggers streaming
         try {
-            impl.getEntries(".*1", null, null, null, -1, false);
+            impl.getEntries(null,null,".*1", null, null, null, -1, false);
         } catch (StreamingServiceException e) {
             InputStream json = (InputStream)e.getEntity();
             List<String> jsonLines = IOUtils.readLines(json, StandardCharsets.UTF_8);
@@ -207,7 +206,7 @@ class MemoryImplTest {
     void testRegexpLookupStreamForceClose() throws IOException {
         // max = -1 triggers streaming
         try {
-            impl.getEntries(".*1", null, null, null, -1, false);
+            impl.getEntries(null, null, ".*1", null, null, null, -1, false);
         } catch (StreamingServiceException e) {
             InputStream json = (InputStream)e.getEntity();
             assertNotEquals(-1, json.read(), "A byte should be returned");
@@ -218,33 +217,32 @@ class MemoryImplTest {
     }
     
     //You can fix your tests yourself
-   /* @Test
+    @Test
     void testTimeMSLookup()  {
         // Get the timestamp for an entry and the total entry count
-        List<EntryReplyDto> all = impl.getEntries(".*", null, null, null, 1000, true);
+        List<EntryReplyDto> all = impl.getEntries(null, null, ".*", null, null, null, 1000, true);
         assertFalse(all.isEmpty(), "some files should be located");
         long firstTime = all.get(0).getLastSeenEpochMS();
 
         // Try requesting a bit later (1 ms later than the first)
-        List<EntryReplyDto> oneMsLater = impl.getEntries(null, null, null, firstTime+1, 1000, true);
+        List<EntryReplyDto> oneMsLater = impl.getEntries(null, null,null, null, null, firstTime+1, 1000, true);
         assertNotEquals(oneMsLater.size(), all.size(),
                         "Requesting 1 ms later than first entry should result in another number of entries returned");
     }
-*/
-  /*  @Test
+    @Test
     void testTimeISOLookup() throws ParseException {
         // Get the timestamp for an entry and the total entry count
-        List<EntryReplyDto> all = impl.getEntries(".*", null, null, null, 1000, true);
+        List<EntryReplyDto> all = impl.getEntries(null, null,".*", null, null, null, 1000, true);
         assertFalse(all.isEmpty(), "some files should be located");
         String firstISO = all.get(0).getLastSeen();
         long firstTime = MemoryImpl.iso8601.parse(firstISO).getTime();
-        
+
         // Try requesting a bit later (1 s as ISO-time only goes down to 1 second granularity in this API)
         String since = MemoryImpl.iso8601.format(new Date(firstTime+1000)); // 1 s later than the first
-        List<EntryReplyDto> oneMsLater = impl.getEntries(".*", null, since, null, 1000, true);
+        List<EntryReplyDto> oneMsLater = impl.getEntries(null,null,".*", null, since, null, 1000, true);
         assertNotEquals(oneMsLater.size(), all.size(),
                         "Requesting 1 second later than first entry should result in another number of entries returned");
-    }*/
+    }
 
     private static MergedApi setupTestImpl(Path root) throws IOException, InterruptedException {
         String[] files = new String[]{
