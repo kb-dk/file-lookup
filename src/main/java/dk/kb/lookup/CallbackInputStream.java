@@ -108,6 +108,7 @@ public class CallbackInputStream extends InputStream {
                 Object jsonObject = producer.call();
                 if (jsonObject == null) {
                     result += "}";
+                    depleted.set(true);
                 } else {
                     if (!first.get()) {
                         result += ",\n";
