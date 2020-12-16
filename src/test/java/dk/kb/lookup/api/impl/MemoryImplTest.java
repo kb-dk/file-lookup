@@ -24,9 +24,7 @@ import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
-import java.text.ParseException;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -58,6 +56,7 @@ class MemoryImplTest {
         impl = setupTestImpl(root);
     }
 
+    // Explorative test. To be replaced  by a WatchBot unit test
     // https://docs.oracle.com/javase/tutorial/essential/io/notification.html
     @Test
     void testWatching() throws IOException, InterruptedException {
