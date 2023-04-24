@@ -51,7 +51,7 @@ openshift.withCluster() { // Use "default" cluster or fallback to OpenShift clus
                         stage("Create build and deploy application") { 
                             openshift.newBuild("--strategy source", "--binary", "-i kb-infra/kb-s2i-tomcat90", "--name file-lookup")
                             openshift.startBuild("file-lookup", "--from-dir=.", "--follow")
-                            openshift.newApp("file-lookup:latest")
+                            openshift.newApp("file-lookup", "-e BUILD_NUMBER=latest")
                             openshift.create("route", "edge", "--service=file-lookup")
                         }
                     }
